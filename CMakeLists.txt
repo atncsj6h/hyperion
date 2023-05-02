@@ -1,0 +1,417 @@
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Copyright (c) 2020, 2023 Enrico Sorichetti
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file BOOST_LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+message( STATUS "CMake version  '${CMAKE_VERSION}'" )
+message( STATUS "Processing     '${CMAKE_CURRENT_LIST_FILE}'" )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if( CMAKE_VERSION VERSION_LESS  3.26 )
+  message( FATAL_ERROR "
+ CMake '3.26' or higher is required,
+ You are running '${CMAKE_VERSION}'" )
+endif()
+cmake_minimum_required( VERSION ${CMAKE_VERSION} )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if( NOT DEFINED ENV{CMTK} )
+  message( FATAL_ERROR "
+ unable to locate the cmToolKit directory" )
+endif()
+
+set( CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR} )
+list( APPEND CMAKE_MODULE_PATH "$ENV{CMTK}/cmake/Modules" )
+
+set( TEMPL_SOURCE_PATH ${CMAKE_SOURCE_DIR} )
+list( APPEND TEMPL_SOURCE_PATH $ENV{CMTK}/cmake/Templates )
+
+include( vDump )
+include( vDrop )
+include( vSnap )
+set( VSNAP 1 )
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# deprecate 'in-source' builds ( source directory/subdirectories )
+# if You accidentally try an 'in-source' build
+# You will have to manually clean up the leftovers :
+# file 'CMakeCache.txt' and directory 'CMakeFiles'
+
+set( CMAKE_DISABLE_IN_SOURCE_BUILD ON )
+set( CMAKE_DISABLE_SOURCE_CHANGES  ON )
+
+get_filename_component( _s "${CMAKE_SOURCE_DIR}" REALPATH )
+string( TOLOWER "${_s}" _s )
+
+get_filename_component( _b "${CMAKE_BINARY_DIR}" REALPATH )
+string( TOLOWER "${_b}" _b )
+
+if( ( "${_b}" STREQUAL "${_s}" ) OR
+    ( "${_b}" MATCHES  "${_s}/" ) )
+  message( FATAL_ERROR "
+ binary directory '${CMAKE_BINARY_DIR}'
+ source directory '${CMAKE_SOURCE_DIR}'
+ builds that modify the source directory/subdirectories are not allowed,
+ remove file 'CMakeCache.txt' and directory 'CMakeFiles' " )
+endif( )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( SYSTEM_NAME "${CMAKE_HOST_SYSTEM_NAME}" )
+string( TOUPPER "${SYSTEM_NAME}" SYSTEM_NAME_UC  )
+set( "${SYSTEM_NAME_UC}" 1 )
+add_compile_definitions(
+  ${SYSTEM_NAME_UC}
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# try to provide compatibility down to High Sierra
+if( APPLE AND BUILD_OSX_UNIVERSAL_BINARIES )
+  set( CMAKE_OSX_DEPLOYMENT_TARGET 10.13.6 CACHE STRING  "" FORCE)
+endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( PROJECT hercules )
+set( VERSION 5.0.0 )
+project( ${PROJECT}
+  VERSION ${VERSION}
+  LANGUAGES C CXX )
+set( VERSION_STRING "${VERSION}" )
+set( VERSION_STRING "${VERSION_STRING}-${CMAKE_SYSTEM_PROCESSOR}" )
+
+#
+if( APPLE AND BUILD_OSX_UNIVERSAL_BINARIES )
+  set( CMAKE_OSX_ARCHITECTURES arm64 x86_64 )
+  set( VERSION_STRING "${VERSION_STRING}-universal" )
+endif()
+
+string( TIMESTAMP BUILD_DATE  %Y/%m/%d )
+string( TIMESTAMP BUILD_TIME  %H:%M:%S )
+string( TIMESTAMP BUILD_TIMESTAMP %Y/%m/%d-%H:%M:%S )
+string( TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LC )
+if( "${CMAKE_BUILD_TYPE_LC}" STREQUAL "release" )
+  set( VERSION_STRING "${VERSION_STRING}-Release" )
+  set( VERSION_STRING "${VERSION_STRING}-${BUILD_TIMESTAMP}" )
+else()
+  include( rcsInfo)
+  set( VERSION_STRING "${VERSION_STRING}-${RCS_WC_REVISION_STRING}" )
+endif()
+
+add_compile_definitions(
+  VERSION="${VERSION}"
+  VERSION_STRING="${VERSION_STRING}" )
+
+message( STATUS "Building ${PROJECT} ${VERSION_STRING}" )
+
+# bits
+math( EXPR HOST_ARCH "8 * ${CMAKE_SIZEOF_VOID_P}" OUTPUT_FORMAT DECIMAL)
+if( NOT ( HOST_ARCH MATCHES 64 ) )
+  message( SEND_ERROR "
+ unsupported Architecture '${HOST_ARCH}-bits'" )
+endif()
+message( STATUS "Building ${PROJECT} ${VERSION_STRING} '${HOST_ARCH}-bits'" )
+
+# endian-ness
+if( NOT ( CMAKE_C_BYTE_ORDER STREQUAL "LITTLE_ENDIAN" ) )
+  message( SEND_ERROR "
+ unsupported Endian-ness '${CMAKE_C_BYTE_ORDER}'" )
+endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# cleanup the CMAKE_SYSTEM_PREFIX_PATH
+if( APPLE )
+  list(REMOVE_DUPLICATES CMAKE_SYSTEM_PREFIX_PATH )
+  set( XPATHS /opt/homebrew /usr/X11R6 /usr/pkg /opt /sw /opt/local )
+  foreach( xpath ${XPATHS} )
+    list( REMOVE_ITEM CMAKE_SYSTEM_PREFIX_PATH ${xpath} )
+  endforeach()
+endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#   setup the proper install paths according to the GNU standards,
+include( installDirectories )
+
+set( CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INST_BIN_DIR}" )
+set( CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INST_LIB_DIR}" )
+set( CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${INST_LIB_DIR}" )
+
+set( INST_MOD_DIR ${INST_LIB_DIR}/${PROJECT} )
+add_compile_definitions(
+  MODULESDIR="${CMAKE_INSTALL_PREFIX}/${INST_MOD_DIR}"
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# rpath handling
+set( CMAKE_SKIP_BUILD_RPATH  FALSE )
+set( CMAKE_BUILD_WITH_INSTALL_RPATH TRUE )
+set( CMAKE_INSTALL_RPATH "@executable_path/../${INST_LIB_DIR}" )
+set( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( CMAKE_POSITION_INDEPENDENT_CODE ON )
+set( CMAKE_EXPORT_COMPILE_COMMANDS  ON )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+option( WITH_IPO      ""  OFF)
+option( WITH_CCACHE   ""  ON )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if( WITH_IPO )
+  include( CheckIPOSupported )
+  check_ipo_supported( RESULT HAVE_IPO_SUPPORT )
+  if ( HAVE_IPO_SUPPORT )
+    message( STATUS "IPO is Supported and Enabled" )
+  endif()
+endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if( WITH_CCACHE )
+  include( ccache )
+endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# find out as early as possible about missing requirements/optionals
+include( pkgConfig )
+pkg_config( required
+  crypto decnumber softfloat telnet
+)
+
+pkg_config(
+  oorexx
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+include( CheckLibraryExists )
+
+check_library_exists( z   zlibVersion       "" HAVE_ZLIB )
+if( NOT HAVE_ZLIB  )
+  message( SEND_ERROR "
+ 'libz' not available" )
+endif()
+set( LIBZ   "z" )
+
+# bzip2
+check_library_exists( bz2 BZ2_bzlibVersion  "" HAVE_BZLIB )
+if( NOT HAVE_BZLIB )
+  message( SEND_ERROR "
+ 'libbz2' not available" )
+endif()
+set( LIBBZ2 "bz2" )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# optional
+pkg_config(
+  oorexx
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# compile_definitions
+include( ${PROJECT}_DEFS OPTIONAL )
+include( ${PROJECT}_DIAG OPTIONAL )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( extpkgs_INCLUDEDIR
+  ${crypto_INCLUDEDIR}
+  ${decNumber_INCLUDEDIR}
+  ${softFloat_INCLUDEDIR}
+  ${telnet_INCLUDEDIR}
+)
+list( REMOVE_DUPLICATES extpkgs_INCLUDEDIR )
+vsnap( extpkgs_INCLUDEDIR )
+
+include_directories(
+  ${CMAKE_BINARY_DIR}
+  ${CMAKE_SOURCE_DIR}
+  ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_SOURCE_DIR}/src/include
+
+  ${oorexx_INCLUDEDIR}
+  ${extpkgs_INCLUDEDIR}
+)
+
+set( extpkgs_LIBDIR
+  ${crypto_LIBDIR}
+  ${decNumber_LIBDIR}
+  ${softFloat_LIBDIR}
+  ${telnet_LIBDIR}
+)
+list( REMOVE_DUPLICATES extpkgs_LIBDIR )
+vsnap( extpkgs_LIBDIR )
+
+link_directories(
+  ${extpkgs_LIBDIR}
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# sources/headers
+include( ${PROJECT}_SRCS )
+include( ${PROJECT}_HDRS OPTIONAL )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#   the libraries/modules
+include( buildLibraries )
+
+set( LIBRARIES hercs hercu hercd herct herc )
+foreach( library ${LIBRARIES} )
+  build_objects( ${library} )
+  build_shared_library( ${library} )
+endforeach()
+
+set( MODULES hdteq dyngui dyncrypt
+  hdt1052c  hdt1403   hdt3505 hdt3525 hdt3270 hdt3420
+  hdt2703   hdttcpnje hdt3705 hdt3088 hdtqeth hdtzfcp hdtptp
+)
+foreach( module ${MODULES} )
+  build_objects( ${module} )
+  build_module( ${module} )
+endforeach()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# the executables
+
+add_executable( hercules
+  src/bootstrap.c
+)
+target_link_libraries( hercules
+  hercs hercu herc
+)
+install( TARGETS hercules
+  RUNTIME DESTINATION ${INST_BIN_DIR}
+)
+
+add_executable( hercifc
+  src/hercifc.c
+)
+target_link_libraries( hercifc
+  hercu
+)
+install( TARGETS hercifc
+  RUNTIME DESTINATION ${INST_BIN_DIR}
+)
+add_custom_command(
+  TARGET hercifc POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} install_name_tool -delete_rpath "@executable_path/../lib" hercifc
+  DEPENDS hercifc
+)
+
+add_executable( hercutun
+  src/hercutun.c
+)
+target_link_libraries( hercutun
+)
+install( TARGETS hercutun
+  RUNTIME DESTINATION ${INST_BIN_DIR}
+)
+add_custom_command(
+  TARGET hercutun POST_BUILD
+  COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} install_name_tool -delete_rpath "@executable_path/../lib" hercutun
+  DEPENDS hercutun
+)
+
+add_executable( herclin
+  src/herclin.c
+)
+target_link_libraries( herclin
+  hercs herc
+)
+install( TARGETS herclin
+  RUNTIME DESTINATION ${INST_BIN_DIR}
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( DASD_UTILITIES
+  cckdcdsk64  cckdcdsk
+  cckdcomp64  cckdcomp
+  cckddiag64  cckddiag
+  cckdswap64  cckdswap
+  convto64
+  dasdconv64  dasdconv
+  dasdcopy64  dasdcopy
+  dasdinit64  dasdinit
+  dasdload64  dasdload
+)
+foreach( program ${DASD_UTILITIES} )
+  add_executable( ${program}
+    src/${program}.c
+  )
+  target_link_libraries( ${program}
+    hercs hercu herc hercd
+  )
+  install( TARGETS ${program}
+    RUNTIME DESTINATION ${INST_BIN_DIR}
+  )
+endforeach()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( TAPE_UTILITIES
+  hetinit
+  hetget
+  hetmap
+  hetupd
+  maketape
+  tapecopy
+  tapemap
+  tapesplt
+)
+foreach( program ${TAPE_UTILITIES} )
+  add_executable( ${program}
+    src/${program}.c
+  )
+  target_link_libraries( ${program}
+    hercs hercu herc herct
+  )
+  install( TARGETS ${program}
+    RUNTIME DESTINATION ${INST_BIN_DIR}
+  )
+endforeach()
+
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# the configuration files
+include( configureTemplates )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if( 0 )
+  configure_templates( config.h isohdrs.h )
+  if( HAVE_CONFIG_H )
+    add_compile_definitions( HAVE_CONFIG_H )
+  endif()
+  if( HAVE_ISOHDRS_H )
+    add_compile_definitions( HAVE_ISOHDRS_H )
+  endif()
+else()
+  configure_template( config.h.preconf config.h)
+  if( HAVE_CONFIG_H )
+    add_compile_definitions( HAVE_CONFIG_H )
+  endif()
+endif( 0 )
+
+configure_templates( cmake_uninstall.cmake )
+if( HAVE_CMAKE_UNINSTALL_CMAKE )
+  add_custom_target( uninstall
+    COMMAND ${CMAKE_COMMAND}
+      -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake )
+endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+add_custom_target( check
+  COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtests.sh
+    --herc     ${CMAKE_BINARY_DIR}/bin/hercules
+    --bindir   ${CMAKE_BINARY_DIR}/bin
+    --libdir   ${CMAKE_BINARY_DIR}/lib
+    --moddir   ${CMAKE_BINARY_DIR}/lib/hercules
+    --tstdir   ${CMAKE_SOURCE_DIR}/tests
+    --conf     ${CMAKE_SOURCE_DIR}/tests/tests.conf
+    --platform ${CMAKE_SYSTEM_NAME}
+    --ptrsize  ${CMAKE_SIZEOF_VOID_P}
+  )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+include( configurationReport OPTIONAL )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+vdump( "main" "exit" )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# this must be the last statement in this file.
+# include( CPack )
