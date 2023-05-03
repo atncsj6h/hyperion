@@ -4662,14 +4662,6 @@ BYTE    stat;                           /* Unit status               */
 /*   Note : lt_dlopen will look for symbol & modulename_LTX_symbol   */
 /*-------------------------------------------------------------------*/
 
-#if defined( HDL_USE_LIBTOOL )
-#define  hdl_ddev   hdt3270_LTX_hdl_ddev
-#define  hdl_depc   hdt3270_LTX_hdl_depc
-#define  hdl_reso   hdt3270_LTX_hdl_reso
-#define  hdl_init   hdt3270_LTX_hdl_init
-#define  hdl_fini   hdt3270_LTX_hdl_fini
-#endif
-
 /*-------------------------------------------------------------------*/
 /*                 DEVICE HANDLER ENTRY-POINTS                       */
 /*-------------------------------------------------------------------*/

@@ -6824,13 +6824,6 @@ static DEVHND qeth_device_hndinfo =
 
 /* Libtool static name colision resolution */
 /* note : lt_dlopen will look for symbol & modulename_LTX_symbol */
-#if defined( HDL_USE_LIBTOOL )
-#define hdl_ddev hdtqeth_LTX_hdl_ddev
-#define hdl_depc hdtqeth_LTX_hdl_depc
-#define hdl_reso hdtqeth_LTX_hdl_reso
-#define hdl_init hdtqeth_LTX_hdl_init
-#define hdl_fini hdtqeth_LTX_hdl_fini
-#endif
 
 HDL_DEPENDENCY_SECTION;
 {

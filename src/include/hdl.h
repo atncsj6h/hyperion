@@ -220,16 +220,7 @@ HDL_DLL_IMPORT void         hdl_repins   ( bool replace, HDLINS* ins );
 /*                     HDL_USE_LIBTOOL                               */
 /*-------------------------------------------------------------------*/
 
-#if !defined( HDL_USE_LIBTOOL )
   #define dlinit()
-#else
-  #define dlinit()                  lt_dlinit()
-  #define dlopen(_name, _flags)     lt_dlopen(_name)
-  #define dlsym(_handle, _symbol)   lt_dlsym(_handle, _symbol)
-  #define dlclose(_handle)          lt_dlclose(_handle)
-  #define dlerror()                 lt_dlerror()
-  #define RTLD_NOW                  0
-#endif
 
 /*-------------------------------------------------------------------*/
 /*                     HDL_MODULE_SUFFIX                             */

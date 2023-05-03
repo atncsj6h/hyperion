@@ -2085,14 +2085,6 @@ void gui_panel_display ()
 /* Libtool static name colision resolution */
 /* note : lt_dlopen will look for symbol & modulename_LTX_symbol */
 
-#if defined( HDL_USE_LIBTOOL )
-#define hdl_ddev dyngui_LTX_hdl_ddev
-#define hdl_depc dyngui_LTX_hdl_depc
-#define hdl_reso dyngui_LTX_hdl_reso
-#define hdl_init dyngui_LTX_hdl_init
-#define hdl_fini dyngui_LTX_hdl_fini
-#endif
-
 HDL_DEPENDENCY_SECTION          // (define module dependencies)
 
     HDL_DEPENDENCY ( HERCULES );        // Hercules itself

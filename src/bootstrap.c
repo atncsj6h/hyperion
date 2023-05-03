@@ -133,9 +133,6 @@ int main( int ac, char* av[] )
     save_term_attrs();
     DROP_PRIVILEGES( CAP_SYS_NICE );
     SET_THREAD_NAME( BOOTSTRAP_NAME );
-#if defined( HDL_USE_LIBTOOL )
-    LTDL_SET_PRELOADED_SYMBOLS();
-#endif
 #if defined( HAVE_SIGNAL_HANDLING )
     install_crash_handler();
 #endif

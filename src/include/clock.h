@@ -373,48 +373,6 @@ int clock_gettime ( clockid_t clk_id, struct timespec *ts )
         return ( -1 );
     }
 
-#if defined(__APPLE__) && 0
-    {
-        /* FIXME: mach/mach.h include is generating invalid storage
-         *        class errors. Default to gettimeofday until resolved.
-         */
-
-        #include <mach/mach.h>
-
-        /* FIXME: This sequence is slower than gettimeofday call per OS
-         *        X Developer Library. Recommend converting to use the
-         *        mach_absolute_time call, but that will have to wait
-         *        until CLOCK_MONOTONIC support and review of steering
-         *        support to avoid double steering.
-         */
-
-        mach_timespec_t     mts;
-        static clock_serv_t cserv = 0;
-
-        if (!cserv)
-        {
-            /* Get clock service port */
-            result = host_get_clock_service(mach_host_self(),
-                                            CALENDAR_CLOCK,
-                                            &cserv);
-            if (result != KERN_SUCCESS)
-            return ( result );
-        }
-
-        result = clock_get_time(cserv, &mts);
-        if (result == KERN_SUCCESS)
-        {
-            ts->tv_sec  = mts.tv_sec;
-            ts->tv_nsec = mts.tv_nsec;
-        }
-
-
-        /* Can this be ignored until shutdown of Hercules? */
-//      result = mach_port_deallocate(mach_task_self(), cserv);
-
-
-    }
-#else /* Convert standard gettimeofday call */
     {
         struct timeval  tv;
 
@@ -457,7 +415,6 @@ int clock_gettime ( clockid_t clk_id, struct timespec *ts )
             #define TOD_MIN_PRECISION
         #endif
     }
-#endif /* defined(__APPLE__) && 0 */
 
     return ( result );
 }

@@ -9609,14 +9609,6 @@ void  calculate_icmpv6_checksum( PIP6FRM pIP6FRM, BYTE* pIcmpHdr, int iIcmpLen )
 /* Libtool static name colision resolution */
 /* note : lt_dlopen will look for symbol & modulename_LTX_symbol */
 
-#if defined( HDL_USE_LIBTOOL )
-#define hdl_ddev hdtptp_LTX_hdl_ddev
-#define hdl_depc hdtptp_LTX_hdl_depc
-#define hdl_reso hdtptp_LTX_hdl_reso
-#define hdl_init hdtptp_LTX_hdl_init
-#define hdl_fini hdtptp_LTX_hdl_fini
-#endif
-
 
 HDL_DEPENDENCY_SECTION;
 {

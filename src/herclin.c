@@ -99,11 +99,6 @@ int main( int argc, char* argv[] )
 
     COMMANDHANDLER  process_command;
 
-#if defined( HDL_USE_LIBTOOL )
-    /* LTDL Preloaded symbols for HDL using libtool */
-    LTDL_SET_PRELOADED_SYMBOLS();
-#endif
-
     /******************************************/
     /* Register the 'log_callback' function   */
     /* as the log message callback routine    */

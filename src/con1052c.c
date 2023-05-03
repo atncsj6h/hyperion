@@ -582,13 +582,6 @@ static DEVHND  con1052_device_hndinfo =
 /*-------------------------------------------------------------------*/
 /*   Note : lt_dlopen will look for symbol & modulename_LTX_symbol   */
 /*-------------------------------------------------------------------*/
-#if defined( HDL_USE_LIBTOOL )
-#define hdl_ddev hdt1052c_LTX_hdl_ddev
-#define hdl_depc hdt1052c_LTX_hdl_depc
-#define hdl_reso hdt1052c_LTX_hdl_reso
-#define hdl_init hdt1052c_LTX_hdl_init
-#define hdl_fini hdt1052c_LTX_hdl_fini
-#endif
 
 /*-------------------------------------------------------------------*/
 /*         HERCULES DYNAMIC LOADER (HDL) CONTROL SECTIONS            */
