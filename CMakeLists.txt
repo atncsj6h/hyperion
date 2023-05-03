@@ -365,6 +365,23 @@ foreach( program ${TAPE_UTILITIES} )
   )
 endforeach()
 
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( MISC_UTILITIES
+  tfprint
+  tfswap
+  txt2card
+)
+foreach( program ${MISC_UTILITIES} )
+  add_executable( ${program}
+    src/${program}.c
+  )
+  target_link_libraries( ${program}
+    hercs hercu herc herct
+  )
+  install( TARGETS ${program}
+    RUNTIME DESTINATION ${INST_BIN_DIR}
+  )
+endforeach()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # the configuration files

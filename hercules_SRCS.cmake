@@ -314,10 +314,29 @@ set( dyngui_LIBS
   hercs hercu herc
 )
 
-  set( hdteq_SRCS
+set( hdteq_SRCS
   src/hdteq.c
 )
 set( hdteq_LIBS
   hercs hercu herc
 )
+
+set( tfprint_SRCS
+  src/tfprint.c
+)
+set( tfprint_LIBS
+)
+
+set( tfprint_SRCS
+  src/tfswap.c
+)
+set( tfprint_LIBS
+)
+
+set( txt2card_SRCS
+  src/txt2card.c
+)
+set( txt2card_LIBS
+)
+
 
