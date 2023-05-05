@@ -1,0 +1,256 @@
+#! /usr/bin/env bash
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Copyright (c) 2020, 2023 Enrico Sorichetti
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file BOOST_LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# str="lll.mmm.nnn"
+# echo "the shortest name         ${str%%.*}"
+# echo "the longest  name         ${str%.*}"
+# echo "the shortest extension    ${str##*.}"
+# echo "the longest  extension    ${str#*.}"
+# exit
+#
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+function Usage() {
+  exit $1
+}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+function __yesno() {
+  for ((;;)) ; do
+    echo "Enter [y](ENTER) to continue"
+    echo "      [n/q]      to Exit"
+    read z
+    if [ "${z}". == . ] ; then
+        return 0
+    fi
+    z=${z:0:1}
+    z="`echo -E "${z}" | tr [:upper:] [:lower:]`"
+    case ${z} in
+      y)  return 0
+          ;;
+      n)  return 1
+          ;;
+      q)  return 1
+          ;;
+    esac
+  done
+}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+quote() {
+  echo "$1" | sed -e "s |' |'\\\\'' |g; 1s/^/'/; \$s/\$/'/"
+}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if  test -f "$(pwd)/CMakeLists.txt" ; then
+  echo "Found '$(pwd)/CMakeLists.txt'"
+  echo "Builds that modify the source directory are not allowed"
+  exit
+fi
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+generator=""
+prefix=""
+source=""
+buildt=""
+
+defs=""
+args=""
+
+warn="-Wno-dev"
+
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+#
+
+longopts="yes,Wnodev,ninja,universal,prefix:,source:,buildt:,remove:,undefine:,define:"
+    opts="y   W      n     u         p:      s:      t:      Z:      U:        D:"
+
+
+
+TEMP=$( getopt -a -o ${opts// /} -l ${longopts} -- "$@" )
+
+if [ $? != 0 ] ; then
+  echo "abnormal termination..." >&2
+  exit 1
+fi
+eval set -- "$TEMP"
+
+while true ; do
+	case "$1" in
+
+	  -y |--yes)
+	    yesno=y
+      shift || { Usage 1 ; }
+    ;;
+
+    -W |--Wnodev)
+      warn="-Wno-dev"
+      shift || { Usage 1 ; }
+    ;;
+
+    -n |--ninja)
+      generator="-G Ninja"
+      shift || { Usage 1 ; }
+    ;;
+
+    -u |--universal)
+      defs="$defs -DBUILD_OSX_UNIVERSAL_BINARIES:BOOL=TRUE"
+      shift || { Usage 1 ; }
+    ;;
+
+    -p | --prefix )
+      prefix=$2
+      shift 2 || { Usage 1 ; }
+    ;;
+
+    -s | --source )
+      echo ">> source='$2'"
+      source=$2
+      shift 2 || { Usage 1 ; }
+      ;;
+
+    -t | --buildt )
+      buildt=$2
+      shift 2 || { Usage 1 ; }
+      ;;
+
+    # undefine a CMAKE variable
+    -Z | --remove )
+      defs='"$defs -U${2^^}"'
+      shift 2 || { Usage 1 ; }
+      ;;
+
+    # set a CMAKE variable to FALSE
+    -U | --undefine)
+      defs="$defs -D${2^^}:BOOL=FALSE"
+      shift 2 || { Usage 1 ; }
+    ;;
+
+    # set a CMAKE variable to TRUE or to a value
+    -D | --define)
+      if [ "${2%=*}". == "${2#*=}". ] ; then
+        defs="$defs -D${2^^}:BOOL=TRUE"
+      else
+        var=${2%=*}; var=${var^^};
+        val=${2#*=}
+        defs="$defs -D${var}:STRING=${val}"
+      fi
+        shift 2 || { Usage 1 ; }
+    ;;
+
+    --)
+      shift || { Usage 1 ; }
+      break
+    ;;
+
+    *)
+      echo "Internal error!"
+      exit 1
+    ;;
+  esac
+
+done
+
+if [ $# != 0 ] ; then
+  echo "$# extra arguments ignored :"
+  for arg do echo ">>$arg<<" ; done
+fi
+
+# echo "here $here"
+# echo "prefix ${here%%.*}"
+# echo "source ${here%.*}"
+
+if  [ "${prefix}". == "".  ] ; then
+
+  here="$(pwd)"
+  head="$(dirname  $here)"
+  tail="$(basename $here)"
+  pref="${tail%.*}"
+  pref="${pref%.*}"
+  pref="${pref%-*}"
+  pref="${head}/${pref}"
+
+  if  [ "${pref}". == "$(pwd)".  ] ; then
+    echo "unable to determine a proper installation prefix"
+    echo "the prefix is the same as the build directory"
+    exit 1
+  fi
+
+  prefix="${pref}"
+
+fi
+
+if  [ "${buildt}". == "".  ] ; then
+  buildt="Release"
+fi
+
+for i in 1 ; do
+  if  [ "${source}". == "".  ] ; then
+    here=$(pwd)
+    head="${here%.*}"
+
+    if  test -f "${head}/CMakeLists.txt" ; then
+      source="${head}"
+      break
+    fi
+
+    EXTS="my src git svn Release Snapshot Darwin "
+    for ext in ${EXTS} ; do
+      echo "${head}.${ext}/CMakeLists.txt"
+      if  test -f "${head}.${ext}/CMakeLists.txt" ; then
+        source="${head}.${ext}"
+        break
+      fi
+    done
+  fi
+done
+if  [ "${source}". == "".  ] ; then
+  echo "unable to determine the source directory from ${here} "
+  exit
+fi
+if  ! test -d "${source}" ; then
+  echo "source directory not found '${source}' "
+  exit
+fi
+
+CMAKE="cmake ${warn} ${generator}"
+
+CMAKE="${CMAKE} -DCMAKE_EXPORT_COMPILE_COMMANDS:BOOL=TRUE"
+
+if  [ "${prefix}". != "".  ] ; then
+  CMAKE="${CMAKE} --install-prefix ${prefix}"
+fi
+
+if  [ "${buildt}". != "".  ] ; then
+  CMAKE="${CMAKE} -DCMAKE_BUILD_TYPE=${buildt}"
+fi
+
+echo $CMAKE ${defs} ${args} $source
+
+if  [ -z ${yesno} ] ; then
+  __yesno
+  RC=$?
+  if [ ${RC} -eq 1 ] ; then
+    echo "canceled"
+    exit
+  fi
+fi
+
+${CMAKE} ${defs} ${args} ${source}
+echo
+RC=$?
+
+if [ ${RC} -ne 0 ] ; then
+  echo "failed"
+fi
+
+exit
+

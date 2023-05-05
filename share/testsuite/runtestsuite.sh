@@ -1,5 +1,43 @@
 #! /usr/bin/env bash
-echo "*****************************"
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+function yesNo() {
+    for ((;;)) ; do
+        echo "${_me} - Enter [y](ENTER) to continue"
+        echo "${_me} -       [n/q]      to Exit"
+        read z
+        if [ "${z}". == . ] ; then
+            return 0
+        fi
+        z=${z:0:1}
+        z="`echo -E "${z}" | tr [:upper:] [:lower:]`"
+        case ${z} in
+            y) return 0
+                ;;
+            n) return 1
+                ;;
+            q) return 1
+                ;;
+        esac
+    done
+}
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+# check if we are running from an installed hercules NO ARGUMENTS
+if [ $# -eq 0 ] ; then
+  echo $0
+  echo $(dirname $0)
+fi
+
+
+echo "%0 **********" $0
+echo "%# **********" $#
+echo "%@ **********" $@
+
+exit
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -53,6 +91,7 @@ if [ -z $(which rexx) ] ; then
   echo "Error: REXX interpreter is not available."
   exit 1
 fi
+export DYLD_LIBRARY_PATH=$(rexx -e 'say .rexxinfo~librarypath')
 
 # set -x
 echo Files: $files
@@ -83,6 +122,15 @@ fi
 # Run  the script through Hercules.  Redirecting standard output writes
 # a log file.  2>&1 disables the panel display and the ability to enter
 # panel commands.
+echo; echo; echo;
+
+yesNo
+RC=$?
+if [ ${RC} -eq 1 ] ; then
+  echo "gmake check canceled by user"
+  exit 1
+fi
+
 
 # set -x
 cmd="$herc -t4.0 -f $conf -r $wfn.testin"

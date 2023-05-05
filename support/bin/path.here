@@ -1,0 +1,83 @@
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Copyright (c) 2022, 2023 Enrico Sorichetti
+# Distributed under the Boost Software License, Version 1.0.
+# (See accompanying file BOOST_LICENSE_1_0.txt or copy at
+# http://www.boost.org/LICENSE_1_0.txt)
+
+# remove the current path from the PATH and add it at the top
+
+if [[ "$( basename $SHELL )" == "bash" ]] ; then
+  # add at end of PATH
+  append_path()
+  {
+    if ! eval test -z "\"\${$1##*:$2:*}\"" -o -z "\"\${$1%%*:$2}\"" -o -z "\"\${$1##$2:*}\"" -o -z "\"\${$1##$2}\"" ; then
+      eval "$1=\$$1:$2"
+    fi
+  }
+  # add at front of PATH
+  prepen_path()
+  {
+    if ! eval test -z "\"\${$1##*:$2:*}\"" -o -z "\"\${$1%%*:$2}\"" -o -z "\"\${$1##$2:*}\"" -o -z "\"\${$1##$2}\"" ; then
+      eval "$1=$2:\$$1"
+    fi
+  }
+  # remove path
+  remove_path()
+  {
+    # front/middle
+    if  eval test -z "\"\${$1##$2:*}\"" -o -z "\"\${$1##*:$2:*}\"" ; then
+      eval "$1=${!1/$2:/}"
+      return
+    fi
+    # tail
+    if  eval test -z "\"\${$1%%*:$2}\"" ; then
+      eval "$1=${!1/:$2/}"
+      return
+    fi
+    # only
+    if  eval test -z "\"\${$1##$2}\"" ; then
+      eval "$1=${!1/$2/}"
+      return
+    fi
+  }
+fi
+
+if [[ "$( basename $SHELL )" == "zsh" ]] ; then
+  # add at end of PATH
+  append_path()
+  {
+    path=(${(@)path:#$1} $1)
+  }
+  # add in front of PATH
+  prepen_path()
+  {
+    path=($1 ${(@)path:#$1})
+  }
+  # remove path
+  remove_path()
+  {
+    path=(${(@)path:#$1})
+  }
+fi
+
+# the works
+here="$(pwd)"
+if ! test -d "${here}" ; then
+  echo  "strange ... path not found '${here}'"
+else
+  if [[ "$( basename $SHELL )" == "bash" ]] ; then
+    remove_path  PATH "${here}"
+    export  PATH
+    prepen_path PATH "${here}"
+    export  PATH
+  fi
+  if [[ "$( basename $SHELL )" == "zsh" ]] ; then
+    # remove_path "${here}"
+    prepen_path "${here}"
+  fi
+fi
+
+# cleanup
+unset append_path
+unset prepen_path
+unset remove_path

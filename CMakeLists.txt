@@ -142,10 +142,12 @@ add_compile_definitions(
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # rpath handling
-set( CMAKE_SKIP_BUILD_RPATH  FALSE )
-set( CMAKE_BUILD_WITH_INSTALL_RPATH TRUE )
-set( CMAKE_INSTALL_RPATH "@executable_path/../${INST_LIB_DIR}" )
-set( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE )
+if( 1 )
+  set( CMAKE_SKIP_BUILD_RPATH  FALSE )
+  set( CMAKE_BUILD_WITH_INSTALL_RPATH TRUE )
+  set( CMAKE_INSTALL_RPATH "@executable_path/../${INST_LIB_DIR}" )
+  set( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE )
+endif()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 set( CMAKE_POSITION_INDEPENDENT_CODE ON )
@@ -172,10 +174,13 @@ endif()
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # find out as early as possible about missing requirements/optionals
 include( pkgConfig )
+
+# required
 pkg_config( required
   crypto decnumber softfloat telnet
 )
 
+# optional
 pkg_config(
   oorexx
 )
@@ -198,11 +203,6 @@ if( NOT HAVE_BZLIB )
 endif()
 set( LIBBZ2 "bz2" )
 
-#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# optional
-pkg_config(
-  oorexx
-)
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # compile_definitions
@@ -288,11 +288,14 @@ target_link_libraries( hercifc
 install( TARGETS hercifc
   RUNTIME DESTINATION ${INST_BIN_DIR}
 )
+
+if( 1 )
 add_custom_command(
   TARGET hercifc POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} install_name_tool -delete_rpath "@executable_path/../lib" hercifc
   DEPENDS hercifc
 )
+endif()
 
 add_executable( hercutun
   src/hercutun.c
@@ -302,12 +305,13 @@ target_link_libraries( hercutun
 install( TARGETS hercutun
   RUNTIME DESTINATION ${INST_BIN_DIR}
 )
+if( 1 )
 add_custom_command(
   TARGET hercutun POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} install_name_tool -delete_rpath "@executable_path/../lib" hercutun
   DEPENDS hercutun
 )
-
+endif()
 add_executable( herclin
   src/herclin.c
 )
@@ -330,6 +334,34 @@ set( DASD_UTILITIES
   dasdinit64  dasdinit
   dasdload64  dasdload
 )
+
+# macro to create and install symbolic links
+macro(create_bin_symlink target symlink )
+  add_custom_command(
+    TARGET ${target}
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} ln -sf ${target} ${symlink}
+    DEPENDS ${target}
+  )
+  install(FILES ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${symlink}
+    DESTINATION ${INST_BIN_DIR}
+  )
+endmacro(create_bin_symlink)
+
+set( dasdcopy_SYMLINKS
+  cckd2ckd
+  cfba2fba
+  ckd2cckd
+  fba2cfba
+)
+
+set( dasdcopy64_SYMLINKS
+  cckd2ckd64
+  cfba2fba64
+  ckd2cckd64
+  fba2cfba64
+)
+
 foreach( program ${DASD_UTILITIES} )
   add_executable( ${program}
     src/${program}.c
@@ -340,6 +372,14 @@ foreach( program ${DASD_UTILITIES} )
   install( TARGETS ${program}
     RUNTIME DESTINATION ${INST_BIN_DIR}
   )
+
+  if( ${program}_SYMLINKS )
+    foreach( symlink  ${${program}_SYMLINKS} )
+      create_bin_symlink( ${program} ${symlink} )
+    endforeach()
+  endif()
+
+
 endforeach()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -383,6 +423,39 @@ foreach( program ${MISC_UTILITIES} )
   )
 endforeach()
 
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# misc files
+
+# the man pages
+install( DIRECTORY share/man
+  DESTINATION ${INST_DATADIR}
+)
+
+# the html pages
+install( DIRECTORY share/html
+  DESTINATION ${INST_DATADIR}
+)
+
+# the testsuite
+install( DIRECTORY share/testsuite
+  DESTINATION ${INST_DATADIR}
+)
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macro to install files as executables
+macro( install_X argv )
+  install( FILES ${CMAKE_SOURCE_DIR}/${argv}
+    DESTINATION ${INST_BIN_DIR}
+    PERMISSIONS OWNER_EXECUTE OWNER_READ OWNER_WRITE
+                GROUP_EXECUTE GROUP_READ
+                WORLD_EXECUTE WORLD_READ )
+endmacro( install_X )
+
+# install the runtestsuite.sh script into  the INST_BIN_DIR
+install_X( share/testsuite/runtestsuite.sh )
+
+
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # the configuration files
 include( configureTemplates )
@@ -412,13 +485,13 @@ endif()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 add_custom_target( check
-  COMMAND bash ${CMAKE_SOURCE_DIR}/tests/runtests.sh
-    --herc     ${CMAKE_BINARY_DIR}/bin/hercules
-    --bindir   ${CMAKE_BINARY_DIR}/bin
-    --libdir   ${CMAKE_BINARY_DIR}/lib
-    --moddir   ${CMAKE_BINARY_DIR}/lib/hercules
-    --tstdir   ${CMAKE_SOURCE_DIR}/tests
-    --conf     ${CMAKE_SOURCE_DIR}/tests/tests.conf
+  COMMAND bash ${CMAKE_SOURCE_DIR}/share/testsuite/runtestsuite.sh
+    --herc     ${CMAKE_BINARY_DIR}/${INST_BIN_DIR}/hercules
+    --bindir   ${CMAKE_BINARY_DIR}/${INST_BIN_DIR}
+    --libdir   ${CMAKE_BINARY_DIR}/${INST_LIB_DIR}
+    --moddir   ${CMAKE_BINARY_DIR}/${INST_MOD_DIR}
+    --tstdir   ${CMAKE_SOURCE_DIR}/${INST_DATADIR}/testsuite
+    --conf     ${CMAKE_SOURCE_DIR}/${INST_DATADIR}/testsuite/testsuite.conf
     --platform ${CMAKE_SYSTEM_NAME}
     --ptrsize  ${CMAKE_SIZEOF_VOID_P}
   )
