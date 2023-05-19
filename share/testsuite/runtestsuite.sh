@@ -1,5 +1,16 @@
 #! /usr/bin/env bash
 
+
+#  COMMAND bash ${CMAKE_SOURCE_DIR}/share/testsuite/runtestsuite.sh
+#    --herc     ${CMAKE_BINARY_DIR}/${INST_BIN_DIR}/hercules
+#    --bindir   ${CMAKE_BINARY_DIR}/${INST_BIN_DIR}
+#    --libdir   ${CMAKE_BINARY_DIR}/${INST_LIB_DIR}
+#    --moddir   ${CMAKE_BINARY_DIR}/${INST_MOD_DIR}
+#    --tstdir   ${CMAKE_SOURCE_DIR}/${INST_DATADIR}/testsuite
+#    --conf     ${CMAKE_SOURCE_DIR}/${INST_DATADIR}/testsuite/testsuite.conf
+#    --platform ${CMAKE_SYSTEM_NAME}
+#    --ptrsize  ${CMAKE_SIZEOF_VOID_P}
+
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 function yesNo() {
     for ((;;)) ; do
@@ -24,20 +35,44 @@ function yesNo() {
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+#  COMMAND bash ${CMAKE_SOURCE_DIR}/share/testsuite/runtestsuite.sh
+#    --herc     ${CMAKE_BINARY_DIR}/${INST_BIN_DIR}/hercules
+#    --bindir   ${CMAKE_BINARY_DIR}/${INST_BIN_DIR}
+#    --libdir   ${CMAKE_BINARY_DIR}/${INST_LIB_DIR}
+#    --moddir   ${CMAKE_BINARY_DIR}/${INST_MOD_DIR}
+#    --tstdir   ${CMAKE_SOURCE_DIR}/${INST_DATADIR}/testsuite
+#    --conf     ${CMAKE_SOURCE_DIR}/${INST_DATADIR}/testsuite/testsuite.conf
+#    --platform ${CMAKE_SYSTEM_NAME}
+#    --ptrsize  ${CMAKE_SIZEOF_VOID_P}
+
+# set -x
+
 # check if we are running from an installed hercules NO ARGUMENTS
-if [ $# -eq 0 ] ; then
-  echo $0
-  echo $(dirname $0)
+if [ "$#" -eq "0" ] ; then
+  # echo $0
+  bindir=$(dirname $0)
+  # echo $bindir
+  herc=$bindir/hercules
+  if ! test -x  $herc ; then
+    echo "hercules executable not found!"
+    exit 1
+  fi
+    prefix=$(dirname $bindir)
+    libdir=$prefix/lib
+    moddir=$prefix/lib/hercules
+    tstdir=$prefix/share/testsuite
+      conf=$prefix/share/testsuite/testsuite.conf
+  platform=$(uname -s)
+      mach=$(uname -m)
+  if [ "$mach" == "arm64" ]; then
+   ptrsize="8"
+  else
+    ptrsize="4"
+  fi
+
+  # echo $prefix
 fi
 
-
-echo "%0 **********" $0
-echo "%# **********" $#
-echo "%@ **********" $@
-
-exit
-
-#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -94,6 +129,8 @@ fi
 export DYLD_LIBRARY_PATH=$(rexx -e 'say .rexxinfo~librarypath')
 
 # set -x
+echo; echo; echo;
+
 echo Files: $files
 
 {

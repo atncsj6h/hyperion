@@ -1,11 +1,20 @@
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # housekeeping
-set( extpkgs_LINK_LIBRARIES
-  ${crypto_LINK_LIBRARIES}
-  ${decnumber_LINK_LIBRARIES}
-  ${softfloat_LINK_LIBRARIES}
-  ${telnet_LINK_LIBRARIES}
-)
+if( USE_EXTPKGS_DYNAMIC_LIBRARIES  )
+  set( extpkgs_LIBRARIES
+    ${crypto_LINK_LIBRARIES}
+    ${decnumber_LINK_LIBRARIES}
+    ${softfloat_LINK_LIBRARIES}
+    ${telnet_LINK_LIBRARIES}
+  )
+else()
+  set( extpkgs_LIBRARIES
+    ${crypto_STATIC_LINK_LIBRARIES}
+    ${decnumber_STATIC_LINK_LIBRARIES}
+    ${softfloat_STATIC_LINK_LIBRARIES}
+    ${telnet_STATIC_LINK_LIBRARIES}
+  )
+endif()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # common data areas
@@ -35,7 +44,7 @@ set( hercu_SRCS
 )
 set( hercu_LIBS
   hercs
-  ${extpkgs_LINK_LIBRARIES}
+  ${extpkgs_LIBRARIES}
 )
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

@@ -118,8 +118,8 @@ CMAKE_MANIFEST_PREFIX=portable cmake -DCMAKE_INSTALL_PREFIX=portable/${project}-
 echo  "${hd}creating '${project}-${version}.run' "
 ${makeself} --xz --sha256 --notemp --nooverwrite \
   --tar-quietly \
-  --license portable/${project}-${triplet}/share/NOTICES/CPLv1.0.txt \
-  portable/${project}-${triplet} ooRexx-${version}.run "ooRexx" ./bin/portable-startup.sh
+  --license portable/${project}-${triplet}/share/NOTICES/QPL-1.0.txt \
+  portable/${project}-${triplet} ${project}-${version}.run ${project} ./bin/portable-startup.sh
 
 RC=$?
 if [ ${RC} -ne 0 ] ; then

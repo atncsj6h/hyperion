@@ -66,21 +66,28 @@ add_compile_definitions(
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # try to provide compatibility down to High Sierra
-if( APPLE AND BUILD_OSX_UNIVERSAL_BINARIES )
+if( APPLE AND BUILD_UNIVERSAL_BINARIES )
   set( CMAKE_OSX_DEPLOYMENT_TARGET 10.13.6 CACHE STRING  "" FORCE)
 endif()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 set( PROJECT hercules )
-set( VERSION 5.0.0 )
+set( VERSION  5 )
+set( RELEASE  1 )
+set( MODLEVL  0 )
+# let's set the revision/BLDLEVL to 0 for now
+# will deal later with that for different SCMs ( subverion/git )
+set( BLDLEVL  0 )
+set( VERSION_TRIPLET "${VERSION}.${RELEASE}.${MODLEVL}" )
+
 project( ${PROJECT}
-  VERSION ${VERSION}
+  VERSION ${VERSION_TRIPLET}
   LANGUAGES C CXX )
-set( VERSION_STRING "${VERSION}" )
+set( VERSION_STRING "${VERSION_TRIPLET}" )
 set( VERSION_STRING "${VERSION_STRING}-${CMAKE_SYSTEM_PROCESSOR}" )
 
 #
-if( APPLE AND BUILD_OSX_UNIVERSAL_BINARIES )
+if( APPLE AND BUILD_UNIVERSAL_BINARIES )
   set( CMAKE_OSX_ARCHITECTURES arm64 x86_64 )
   set( VERSION_STRING "${VERSION_STRING}-universal" )
 endif()
@@ -91,7 +98,7 @@ string( TIMESTAMP BUILD_TIMESTAMP %Y/%m/%d-%H:%M:%S )
 string( TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_LC )
 if( "${CMAKE_BUILD_TYPE_LC}" STREQUAL "release" )
   set( VERSION_STRING "${VERSION_STRING}-Release" )
-  set( VERSION_STRING "${VERSION_STRING}-${BUILD_TIMESTAMP}" )
+  # set( VERSION_STRING "${VERSION_STRING}-${BUILD_TIMESTAMP}" )
 else()
   include( rcsInfo)
   set( VERSION_STRING "${VERSION_STRING}-${RCS_WC_REVISION_STRING}" )
@@ -212,8 +219,8 @@ include( ${PROJECT}_DIAG OPTIONAL )
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 set( extpkgs_INCLUDEDIR
   ${crypto_INCLUDEDIR}
-  ${decNumber_INCLUDEDIR}
-  ${softFloat_INCLUDEDIR}
+  ${decnumber_INCLUDEDIR}
+  ${softfloat_INCLUDEDIR}
   ${telnet_INCLUDEDIR}
 )
 list( REMOVE_DUPLICATES extpkgs_INCLUDEDIR )
@@ -231,8 +238,8 @@ include_directories(
 
 set( extpkgs_LIBDIR
   ${crypto_LIBDIR}
-  ${decNumber_LIBDIR}
-  ${softFloat_LIBDIR}
+  ${decnumber_LIBDIR}
+  ${softfloat_LIBDIR}
   ${telnet_LIBDIR}
 )
 list( REMOVE_DUPLICATES extpkgs_LIBDIR )
@@ -427,6 +434,11 @@ endforeach()
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # misc files
 
+# NOTICES
+install( DIRECTORY share/NOTICES
+  DESTINATION ${INST_DATADIR}
+)
+
 # the man pages
 install( DIRECTORY share/man
   DESTINATION ${INST_DATADIR}
@@ -455,6 +467,11 @@ endmacro( install_X )
 # install the runtestsuite.sh script into  the INST_BIN_DIR
 install_X( share/testsuite/runtestsuite.sh )
 
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# the support files
+foreach( X portable-startup.sh )
+  install_X( support/bin/${X} )
+endforeach()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # the configuration files
@@ -482,6 +499,16 @@ if( HAVE_CMAKE_UNINSTALL_CMAKE )
     COMMAND ${CMAKE_COMMAND}
       -P ${CMAKE_BINARY_DIR}/cmake_uninstall.cmake )
 endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+add_custom_target( portable
+  COMMAND bash ${CMAKE_SOURCE_DIR}/support/bin/portable-build.bash
+    --makeself ${CMAKE_SOURCE_DIR}/support/bin/makeself.sh
+    --project  ${PROJECT}
+    --prefix   ${CMAKE_INSTALL_PREFIX}
+    --triplet  ${VERSION_TRIPLET}
+    --version  ${VERSION_STRING}
+  )
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 add_custom_target( check

@@ -713,7 +713,7 @@
 /* #undef LT_SHARED_LIB_MEMBER */
 
 /* Defines the maximum number of emulated CPU engines */
-#define MAX_CPU_ENGS 128
+#define MAX_CPU_ENGS 16
 
 /* Define to indicate optreset exists */
 /* #undef NEED_GETOPT_OPTRESET */

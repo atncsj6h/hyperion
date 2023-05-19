@@ -104,6 +104,14 @@
   #error CKD_MAXFILES can not exceed design limit of 35
 #endif
 
+#define OPTION_NO_SHARED_DEVICES
+#if defined( OPTION_SHARED_DEVICES )
+  #undef OPTION_SHARED_DEVICES
+#endif
+#if defined( FBA_SHARED )
+  #undef FBA_SHARED
+#endif
+
 #if defined( OPTION_SHARED_DEVICES ) && defined( OPTION_NO_SHARED_DEVICES )
   #error Either OPTION_SHARED_DEVICES or OPTION_NO_SHARED_DEVICES must be specified, not both
 #elif !defined( OPTION_SHARED_DEVICES ) && !defined( OPTION_NO_SHARED_DEVICES )
