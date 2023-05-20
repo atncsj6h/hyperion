@@ -1799,7 +1799,7 @@ LOGM_DLL_IMPORT int  panel_command_capture( char* cmd, char** resp, bool quiet )
        "HHC02495I   -1      normal  checking\n" \
        "HHC02495I   -2      intermediate checking\n" \
        "HHC02495I   -3      maximal checking"
-#define HHC02496 "Usage: %s [options] ctlfile outfile [n]\n" \
+#define HHC02496 "Usage: %s [options] ctlfile outfile [n [maxdblk maxttr maxdscb]]\n" \
        "HHC02496I options:\n" \
        "HHC02496I   -0     no compression (default)\n" \
        "HHC02496I   -a     output disk will include alternate cylinders\n" \
@@ -1811,7 +1811,9 @@ LOGM_DLL_IMPORT int  panel_command_capture( char* cmd, char** resp, bool quiet )
        "HHC02496I\n" \
        "HHC02496I ctlfile  name of input control file\n" \
        "HHC02496I outfile  name of DASD image file to be created\n" \
-       "HHC02496I n        msglevel 'n' is a digit 0 - 5 indicating output verbosity"
+       "HHC02496I\n" \
+       "HHC02496I n        'n' is a digit 0 - 5 (default is 1) indicating output verbosity\n" \
+       "HHC02496I max...   'maxdblk', etc, is maximum number of DBLK/TTR/DSCB entries or 0 for default"
 #define HHC02497 "Usage: %s [-f] [-level] file1 [file2 ... ]\n" \
        "HHC02497I   file    name of CCKD file\n" \
        "HHC02497I Options:\n" \
@@ -2815,20 +2817,6 @@ LOGM_DLL_IMPORT int  panel_command_capture( char* cmd, char** resp, bool quiet )
 #define HHC92702 "Tape %s: %smt_gstat 0x%8.8"PRIX32" %s" // scsitape.c
 //efine HHC92703 - HHC92799 (available)
 
-#define HHCXU001E "Too many digits in utun unit number %d\n"
-#define HHCXU002E "socketpair() failed: %s\n"
-#define HHCXU901I "About to fork()/exec(): %s %s %s %s %s\n"
-#define HHCXU003E "fork() failed: %s\n"
-#define HHCXU004E "malloc() failed\n"
-#define HHCXU005E "recvmsg() failed: %s\n"
-#define HHCXU006E "Broken connection to hercutun process\n"
-#define HHCXU007E "No file descriptor from hercutun process\n"
-#define HHCXU020I "hercutun exited normally\n"
-#define HHCXU021E "hercutun argument error\n"
-#define HHCXU022E "hercutun error while opening interface\n"
-#define HHCXU023E "hercutun error while configuring addresses\n"
-#define HHCXU024E "hercutun IPC error\n"
-#define HHCCT081E "%4.4X: Invalid utun unit %s\n"
 // range 92800 - 92899 available
 // range 92900 - 92999 available
 

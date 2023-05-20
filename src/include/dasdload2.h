@@ -31,11 +31,11 @@
 /*-------------------------------------------------------------------*/
 /* Internal table sizes                                              */
 /*-------------------------------------------------------------------*/
-#define MAXDBLK 10000                   /* Maximum number of directory
+#define DEF_MAXDBLK 10000               /* Maximum number of directory
                                            blocks per dataset        */
-#define MAXTTR  50000                   /* Maximum number of TTRs
+#define DEF_MAXTTR  50000               /* Maximum number of TTRs
                                            per dataset               */
-#define MAXDSCB 1000                    /* Maximum number of DSCBs   */
+#define DEF_MAXDSCB 5000                /* Maximum number of DSCBs   */
 
 /*-------------------------------------------------------------------*/
 /* Internal macro definitions                                        */
@@ -109,7 +109,12 @@ BYTE cvol_low_key[] = {0, 0, 0, 0, 0, 0, 0, 1};
 
 /* Information message level: 0=None, 1=File name, 2=File information,
    3=Member information, 4=Text units, record headers, 5=Dump data */
+
 int  infolvl = 1;
+
+int  nMaxDBLK = DEF_MAXDBLK;
+int  nMaxTTR  = DEF_MAXTTR;
+int  nMaxDSCB = DEF_MAXDSCB;
 
 /*-------------------------------------------------------------------*/
 /* Subroutine to display command syntax and exit                     */
@@ -337,6 +342,7 @@ int     track;                          /* Relative track number     */
     /* Error if track was not found in extent table */
     if (i == numext)
     {
+        // "CCHH[%04X%04X] not found in extent table"
         XMERRF ( MSG( HHC02505, "E", cyl, head ) );
         return -1;
     }
@@ -375,6 +381,7 @@ char            pathname[MAX_PATH];     /* iplfnm in host path format*/
     tfd = HOPEN (pathname, O_RDONLY|O_BINARY);
     if (tfd < 0)
     {
+        // "Cannot %s file %s; error %s"
         XMERRF ( MSG( HHC02506, "E", "open", iplfnm, strerror( errno ) ) );
         return -1;
     }
@@ -386,6 +393,7 @@ char            pathname[MAX_PATH];     /* iplfnm in host path format*/
         rc = read (tfd, objrec, 80);
         if (rc < 80)
         {
+            // "Cannot %s file %s; error %s"
             XMERRF ( MSG( HHC02506, "E", "read", iplfnm, strerror( errno ) ) );
             close (tfd);
             return -1;
@@ -394,6 +402,7 @@ char            pathname[MAX_PATH];     /* iplfnm in host path format*/
         /* Column 1 of each object card must contain X'02' */
         if (objrec[0] != 0x02)
         {
+            // "File %s: invalid object file"
             XMERRF ( MSG( HHC02507, "E", iplfnm ) );
             close (tfd);
             return -1;
@@ -413,11 +422,13 @@ char            pathname[MAX_PATH];     /* iplfnm in host path format*/
         /* Load the byte count from TXT card columns 11-12 */
         txtlen = (objrec[10] << 8) | objrec[11];
 
+        // "IPL text address=%06X length=%04X"
         XMINFF (5, MSG( HHC02522, "I", txtadr, txtlen ) );
 
         /* Check that the byte count is valid */
         if (txtlen > 56)
         {
+            // "File %s: TXT record has invalid count of %d"
             XMERRF ( MSG( HHC02508, "E", iplfnm, txtlen ) );
             close (tfd);
             return -1;
@@ -426,6 +437,7 @@ char            pathname[MAX_PATH];     /* iplfnm in host path format*/
         /* Check that the text falls within the buffer */
         if (txtadr + txtlen > buflen)
         {
+            // "File %s: IPL text exceeds %d bytes"
             XMERRF ( MSG( HHC02509, "E", iplfnm, buflen ) );
             close (tfd);
             return -1;
@@ -602,6 +614,7 @@ CKD_RECHDR     *rechdr;                 /* -> Record header          */
     /* Error if record will not even fit on an empty track */
     if (cc > 0)
     {
+        // "Input record CCHHR[%02X%02X%02X%02X%02X] exceeds output device track size"
         XMERRF ( MSG( HHC02510, "E", blk->cyl[0], blk->cyl[1],
                 blk->head[0], blk->head[1], blk->rec ) );
         return -1;
@@ -610,6 +623,7 @@ CKD_RECHDR     *rechdr;                 /* -> Record header          */
     /* Determine whether end of extent has been reached */
     if (*reltrk >= maxtrk)
     {
+        // "Dataset exceeds extent size: reltrk=%d, maxtrk=%d"
         XMERRF ( MSG( HHC02511, "E", *reltrk, maxtrk ) );
         return -1;
     }
@@ -621,6 +635,7 @@ CKD_RECHDR     *rechdr;                 /* -> Record header          */
     /* Double check that record will not exceed virtual track size */
     if (*usedv + CKD_RECHDR_SIZE + keylen + datalen + 8 > trklen)
     {
+        // "Input record CCHHR[%02X%02X%02X%02X%02X] exceeds virtual device track size"
         XMERRF ( MSG( HHC02512, "E", blk->cyl[0], blk->cyl[1],
                 blk->head[0], blk->head[1], blk->rec ) );
         return -1;
@@ -847,6 +862,7 @@ CKD_RECHDR      rechdr;                 /* Record header             */
     rc = read_track( cif, cyl, (U8) head );
     if (rc < 0)
     {
+        // "File %s: read error at cyl[%04X/%d] head[%04X/%d]"
         XMERRF ( MSG( HHC02513, "E", ofname, cyl, cyl, head, head ) );
         return -1;
     }
@@ -862,6 +878,7 @@ CKD_RECHDR      rechdr;                 /* Record header             */
         || fetch_hw( trkhdr.head ) != head
     )
     {
+        // "File %s: cyl[%04X/%d] head[%04X/%d]; invalid track header %02X%02X%02X%02X%02X"
         XMERRF ( MSG( HHC02514, "E", ofname, cyl, cyl, head, head,
                                      trkhdr.bin, trkhdr.cyl[0], trkhdr.cyl[1],
                                      trkhdr.head[0], trkhdr.head[1] ) );
@@ -878,6 +895,7 @@ CKD_RECHDR      rechdr;                 /* Record header             */
         /* Check for end of track */
         if (memcmp( &rechdr, &CKD_ENDTRK, CKD_ENDTRK_SIZE ) == 0)
         {
+            // "File %s: cyl[%04X/%d] head[%04X/%d] rec[%02X/%d] record not found"
             XMERRF ( MSG( HHC02515, "E", ofname, cyl, cyl, head, head, rec, rec ) );
             return -1;
         }
@@ -898,6 +916,7 @@ CKD_RECHDR      rechdr;                 /* Record header             */
     /* Check for attempt to change key length or data length */
     if (keylen != klen || datalen != dlen)
     {
+        // "File %s: cyl[%04X/%d] head[%04X/%d] rec[%02X/%d] unmatched KL/DL"
         XMERRF ( MSG( HHC02516, "E", ofname, cyl, cyl, head, head, rec, rec ) );
         return -1;
     }
@@ -910,10 +929,12 @@ CKD_RECHDR      rechdr;                 /* Record header             */
     rc = read_track( cif, curcyl, (U8) curhead );
     if (rc < 0)
     {
+        // "File %s: read error at cyl[%04X/%d] head[%04X/%d]"
         XMERRF ( MSG( HHC02513, "E", ofname, curcyl, curcyl, curhead, curhead ) );
         return -1;
     }
 
+    // "Updating cyl[%04X/%d] head[%04X/%d] rec[%02X/%d]; kl[%d] dl[%d]"
     XMINFF (4, MSG( HHC02523, "I", cyl, cyl, head, head, rec, rec, keylen, datalen ) );
 
     return 0;
@@ -970,14 +991,16 @@ time_t          timeval;                /* Current time value        */
     datablk = (DATABLK*)malloc(blklen);
     if (datablk == NULL)
     {
+        // "Error obtaining storage for %sDSCB: %s"
         XMERRF ( MSG( HHC02517, "E", "Format 1 ", strerror(errno) ) );
         return -1;
     }
 
     /* Check that there is room in the DSCB pointer array */
-    if (dscbnum >= MAXDSCB)
+    if (dscbnum >= nMaxDSCB)
     {
-        XMERRF ( MSG( HHC02518, "E", MAXDSCB ) );
+        // "Internal error: DSCB count exceeds MAXDSCB of %d"
+        XMERRF ( MSG( HHC02518, "E", nMaxDSCB ) );
         return -1;
     }
 
@@ -1080,14 +1103,16 @@ int             tolfact;                /* Device tolerance          */
     datablk = (DATABLK*)malloc(blklen);
     if (datablk == NULL)
     {
+        // "Error obtaining storage for %sDSCB: %s"
         XMERRF ( MSG( HHC02517, "E", "Format 4 ", strerror(errno) ) );
         return -1;
     }
 
     /* Check that there is room in the DSCB pointer array */
-    if (dscbnum >= MAXDSCB)
+    if (dscbnum >= nMaxDSCB)
     {
-        XMERRF ( MSG( HHC02518, "E", MAXDSCB ) );
+        // "Internal error: DSCB count exceeds MAXDSCB of %d"
+        XMERRF ( MSG( HHC02518, "E", nMaxDSCB ) );
         return -1;
     }
 
@@ -1152,14 +1177,16 @@ int             blklen;                 /* Size of data block        */
     datablk = (DATABLK*)malloc(blklen);
     if (datablk == NULL)
     {
+        // "Error obtaining storage for %sDSCB: %s"
         XMERRF ( MSG( HHC02517, "E", "Format 5 ", strerror(errno) ) );
         return -1;
     }
 
     /* Check that there is room in the DSCB pointer array */
-    if (dscbnum >= MAXDSCB)
+    if (dscbnum >= nMaxDSCB)
     {
-        XMERRF ( MSG( HHC02518, "E", MAXDSCB ) );
+        // "Internal error: DSCB count exceeds MAXDSCB of %d"
+        XMERRF ( MSG( HHC02518, "E", nMaxDSCB ) );
         return -1;
     }
 
@@ -1271,6 +1298,7 @@ char            dsnama[45];             /* Dataset name (ASCIIZ)     */
     /* Check that VTOC extent size is sufficient */
     if (numtrks < mintrks)
     {
+        // "VTOC requires %d track%s; current allocation is too small"
         XMERRF ( MSG( HHC02519, "E", mintrks, mintrks == 1 ? "" : "s" ) );
         return -1;
     }
@@ -1279,6 +1307,7 @@ char            dsnama[45];             /* Dataset name (ASCIIZ)     */
     rc = read_track( cif, outcyl, (U8) outhead );
     if (rc < 0)
     {
+        // "Error reading %s at cyl[%04X/%d] head[%04X/%d]"
         XMERRF ( MSG( HHC02530, "E", "VTOC", outcyl, outcyl, outhead, outhead ) );
         return -1;
     }
@@ -1304,6 +1333,7 @@ char            dsnama[45];             /* Dataset name (ASCIIZ)     */
     volvtoc[3] = outhead & 0xFF;
     volvtoc[4] = 1;
 
+    // "VTOC starts at cyl[%04X/%d] head[%04X/%d] and is %d track%s"
     XMINFF (1, MSG( HHC02524, "I", outcyl, outcyl, outhead, outhead, numtrks, numtrks == 1 ? "" : "s" ) );
 
     /* Calculate the number of format 0 DSCBs required to
@@ -1378,6 +1408,7 @@ char            dsnama[45];             /* Dataset name (ASCIIZ)     */
                     &outtrk, &outcyl, &outhead, &outrec);
         if (rc < 0) return -1;
 
+        // "Format %d DSCB CCHHR[%04X%04X%02X] (TTR[%04X%02X]) %s"
         XMINFF (4, MSG( HHC02525, "I", datablk->kdarea[0] == 0x04 ? 4 :
                                        datablk->kdarea[0] == 0x05 ? 5 : 1,
                                        outcyl, outhead, outrec, outtrk, outrec, dsnama ) );
@@ -1397,6 +1428,7 @@ char            dsnama[45];             /* Dataset name (ASCIIZ)     */
                     &outtrk, &outcyl, &outhead, &outrec);
         if (rc < 0) return -1;
 
+        // "Format %d DSCB CCHHR[%04X%04X%02X] (TTR[%04X%02X]) %s"
         XMINFF (4,  MSG( HHC02525, "I", 0, outcyl, outhead, outrec, outtrk, outrec, "" ) );
 
     } /* end for(i) */
@@ -1413,6 +1445,7 @@ char            dsnama[45];             /* Dataset name (ASCIIZ)     */
         rc = read_track( cif, curcyl, (U8) curhead );
         if (rc < 0)
         {
+            // "Error reading %s at cyl[%04X/%d] head[%04X/%d]"
             XMERRF ( MSG( HHC02530, "E", "track", curcyl, curcyl, curhead, curhead ) );
             return -1;
         }
@@ -1502,6 +1535,7 @@ char    hex[17];                        /* Character work areas      */
     /* Error if remaining length is insufficient for header */
     if (bufrem < 4)
     {
+        // "Incomplete text unit"
         XMERR ( MSG( HHC02531, "E" ) );
         return -1;
     }
@@ -1514,12 +1548,16 @@ char    hex[17];                        /* Character work areas      */
     name = tu_name(key);
 
     /* Print the text unit name and field count */
+
+    // "\t+%04X %-8.8s %04X %04X"
     XMINFF (4, MSG_C( HHC02526, "I", bufpos, name, key, num ) );
 
     /* Error if number of fields exceeds maximum */
     if (num > maxnum)
     {
         XMINF (4, "\n");
+
+        // "Too many fields in text unit"
         XMERR ( MSG( HHC02532, "E" ) );
         return -1;
     }
@@ -1535,6 +1573,7 @@ char    hex[17];                        /* Character work areas      */
         if (bufrem < 2)
         {
             XMINF (4, "\n");
+            // "Incomplete text unit"
             XMERR ( MSG( HHC02531, "E" ) );
             return -1;
         }
@@ -1548,6 +1587,7 @@ char    hex[17];                        /* Character work areas      */
         if (bufrem < len)
         {
             XMINF (4, "\n");
+            // "Incomplete text unit"
             XMERR ( MSG( HHC02531, "E" ) );
             return -1;
         }
@@ -1621,6 +1661,7 @@ BYTE            seghdr[2];              /* Segment length and flags  */
         rc = read (xfd, seghdr, 2);
         if (rc < 2)
         {
+            // "File %s: read error: %s"
             XMERRF ( MSG( HHC02533, "E", xfname, rc < 0 ? strerror(errno) : "Unexpected end of file" ) );
             return -1;
         }
@@ -1628,6 +1669,7 @@ BYTE            seghdr[2];              /* Segment length and flags  */
         /* Check for valid segment header */
         if (seghdr[0] < 2 || (seghdr[1] & 0x1F) != 0)
         {
+            // "File %s: invalid segment header: %02X%02X"
             XMERRF ( MSG( HHC02534, "E", xfname, seghdr[0], seghdr[1] ) );
             return -1;
         }
@@ -1638,6 +1680,7 @@ BYTE            seghdr[2];              /* Segment length and flags  */
             /* Check that first segment indicator is set */
             if ((seghdr[1] & 0x80) == 0)
             {
+                // "File %s: first segment indicator expected"
                 XMERRF ( MSG( HHC02535, "E", xfname ) );
                 return -1;
             }
@@ -1652,6 +1695,7 @@ BYTE            seghdr[2];              /* Segment length and flags  */
             /* Check that first segment indicator is not set */
             if (seghdr[1] & 0x80)
             {
+                // "File %s: first segment indicator not expected"
                 XMERRF ( MSG( HHC02536, "E", xfname ) );
                 return -1;
             }
@@ -1659,6 +1703,7 @@ BYTE            seghdr[2];              /* Segment length and flags  */
             /* Check if ctlrec indicator matches first segment */
             if ((seghdr[1] & 0x20) != ctlind)
             {
+                // "File %s: control record indicator mismatch"
                 XMERRF ( MSG( HHC02537, "E", xfname ) );
                 return -1;
             }
@@ -1669,6 +1714,7 @@ BYTE            seghdr[2];              /* Segment length and flags  */
         rc = read (xfd, xbuf + xreclen, seglen);
         if (rc < seglen)
         {
+            // "File %s: read error: %s"
             XMERRF ( MSG( HHC02533, "E", xfname, rc < 0 ? strerror(errno) : "Unexpected end of file" ) );
             return -1;
         }
@@ -1710,6 +1756,7 @@ DATABLK        *datablk;                /* Data block                */
        xreclen = read(xfd, xbuf, 56);   /* read COPYR1 plus some extras */
        if (xreclen < 56)
         {
+            // "File %s: read error: %s"
             XMERRF ( MSG( HHC02533, "E", xfname, xreclen < 0 ? strerror(errno) : "Unexpected end of file" ) );
             return -1;
         }
@@ -1719,6 +1766,7 @@ DATABLK        *datablk;                /* Data block                */
        xreclen = read(xfd, xbuf, sizeof(COPYR2));  /* read COPYR2 */
        if (xreclen < (int)sizeof(COPYR2))
         {
+            // "File %s: read error: %s"
             XMERRF ( MSG( HHC02533, "E", xfname, xreclen < 0 ? strerror(errno) : "Unexpected end of file" ) );
             return -1;
         }
@@ -1730,6 +1778,7 @@ DATABLK        *datablk;                /* Data block                */
           return 0;
        if (rc < 12)
         {
+            // "File %s: read error: %s"
             XMERRF ( MSG( HHC02533, "E", xfname, rc < 0 ? strerror(errno) : "Unexpected end of file" ) );
             return -1;
         }
@@ -1739,6 +1788,7 @@ DATABLK        *datablk;                /* Data block                */
        rc = read(xfd, xbuf + 12, xreclen);  /* read kdarea of DATABLK */
        if (rc < xreclen)
         {
+            // "File %s: read error: %s"
             XMERRF ( MSG( HHC02533, "E", xfname, rc < 0 ? strerror(errno) : "Unexpected end of file" ) );
             return -1;
         }
@@ -1799,6 +1849,8 @@ BYTE           *fieldptr[MAXNUM];       /* Array of field pointers   */
     /* Extract the file number which follows the record name */
     filenum = (xbuf[6] << 24) | (xbuf[7] << 16)
             | (xbuf[8] << 8) | xbuf[9];
+
+    // "File number: %d"
     XMINFF (4, MSG( HHC02527, "I", filenum ) );
 
     /* Point to the first text unit */
@@ -1823,6 +1875,7 @@ BYTE           *fieldptr[MAXNUM];       /* Array of field pointers   */
                 MAXNUM, fieldlen, fieldptr);
         if (rc < 0)
         {
+            // "Invalid text unit at offset %04X"
             XMERRF ( MSG( HHC02538, "E", bufpos + 2 ) );
             return -1;
         }
@@ -1877,7 +1930,10 @@ BYTE           *fieldptr[MAXNUM];       /* Array of field pointers   */
     /* Return the dataset values if this is the IEBCOPY record */
     if (strcmp(tuutiln, "IEBCOPY") == 0)
     {
+        // "File[%04u]: DSNAME=%s"
         XMINFF (2, MSG( HHC02528, "I", filenum, tudsnam ) );
+
+        // "            DSORG=%s RECFM=%s LRECL=%d BLKSIZE=%d KEYLEN=%d DIRBLKS=%d"
         XMINFF (2, MSG( HHC02529, "I", dsorg_name(tudsorg), recfm_name(turecfm),
                                        tulrecl, tublksz, tukeyln, tudirct ) );
         *filen = filenum;
@@ -1924,6 +1980,7 @@ BYTE           *fieldptr[MAXNUM];       /* Array of field pointers   */
                 MAXNUM, fieldlen, fieldptr);
         if (rc < 0)
         {
+            // "Invalid text unit at offset %04X"
             XMERRF ( MSG( HHC02538, "E", bufpos + 2 ) );
             return -1;
         }
@@ -1959,6 +2016,7 @@ U16     heads;                          /* Number of tracks/cylinder */
     if (xreclen != sizeof(COPYR1)
         && xreclen != sizeof(COPYR1) - 4)
     {
+        // "COPYR%d record length is invalid"
         XMERR ( MSG( HHC02539, "E", 1 ) );
         return -1;
     }
@@ -1966,6 +2024,7 @@ U16     heads;                          /* Number of tracks/cylinder */
     /* Check that COPYR1 header identifier is correct */
     if (memcmp(copyr1->hdrid, COPYR1_HDRID, 3) != 0)
     {
+        // "COPYR%d header identifier not correct"
         XMERR ( MSG( HHC02540, "E", 1 ) );
         return -1;
     }
@@ -1974,6 +2033,7 @@ U16     heads;                          /* Number of tracks/cylinder */
     if ((copyr1->uldfmt & COPYR1_ULD_FORMAT)
             != COPYR1_ULD_FORMAT_OLD)
     {
+        // "COPYR%d unload format is unsupported"
         XMERR ( MSG( HHC02541, "E", 1 ) );
         return -1;
     }
@@ -1983,11 +2043,14 @@ U16     heads;                          /* Number of tracks/cylinder */
     keylen = copyr1->ds1keyl;
 
     /* Display original dataset information */
+
+    // "Original dataset: DSORG=%s RECFM=%s LRECL=%d BLKSIZE=%d KEYLEN=%d"
     XMINFF (2, MSG( HHC02550, "I",
             dsorg_name(copyr1->ds1dsorg),
             recfm_name(&copyr1->ds1recfm),
             lrecl, blksize, keylen ) );
 
+    // "Dataset was unloaded from device type %02X%02X%02X%02X (%s)"
     XMINFF (2, MSG( HHC02551, "I",
             copyr1->ucbtype[0], copyr1->ucbtype[1],
             copyr1->ucbtype[2], copyr1->ucbtype[3],
@@ -1996,6 +2059,7 @@ U16     heads;                          /* Number of tracks/cylinder */
     cyls  = fetch_hw( copyr1->cyls  );
     heads = fetch_hw( copyr1->heads );
 
+    // "Original device was cyls[%04X/%d], heads[%04X/%d]"
     XMINFF (2, MSG( HHC02552, "I", cyls, cyls, heads, heads ) );
 
     return heads;
@@ -2023,6 +2087,7 @@ int     i;                              /* Array subscript           */
     /* Check COPYR2 record for correct length */
     if (xreclen != sizeof(COPYR2))
     {
+        // "COPYR%d record length is invalid"
         XMERR ( MSG( HHC02539, "E", 2 ) );
         return -1;
     }
@@ -2031,6 +2096,7 @@ int     i;                              /* Array subscript           */
     numext = copyr2->debbasic[0];
     if (numext < 1 || numext > 16)
     {
+        // "Invalid number of extents %d"
         XMERRF ( MSG( HHC02542, "E", numext ) );
         return -1;
     }
@@ -2049,6 +2115,7 @@ int     i;                              /* Array subscript           */
         xarray[i].ntrk = (copyr2->debxtent[i][14] << 8)
                         | copyr2->debxtent[i][15];
 
+        // "Extent %d: Begin CCHH[%04X%04X] End CCHH[%04X%04X] Tracks=[%04X/%d]"
         XMINFF (4, MSG( HHC02553, "I", i, xarray[i].bcyl, xarray[i].btrk,
                                           xarray[i].ecyl, xarray[i].etrk,
                                           xarray[i].ntrk, xarray[i].ntrk ) );
@@ -2097,6 +2164,7 @@ char            hex[49];                /* Character work areas      */
     /* Check for end of directory */
     if (blklen == 12 && memcmp(xbuf, twelvehex00, 12) == 0)
     {
+        // "End of directory"
         XMINF (3, MSG( HHC02554, "I" ) );
         return 1;
     }
@@ -2104,6 +2172,7 @@ char            hex[49];                /* Character work areas      */
     /* Check directory block record for correct length */
     if (blklen != 276)
     {
+        // "Invalid directory block record length"
         XMERR ( MSG( HHC02543, "E" ) );
         return -1;
     }
@@ -2112,7 +2181,7 @@ char            hex[49];                /* Character work areas      */
     blkp = (DATABLK*)malloc(blklen);
     if (blkp == NULL)
     {
-
+        // "Storage allocation for %s using %s failed: %s"
         XMERRF ( MSG( HHC02544, "E", "a directory block", "malloc()", strerror( errno ) ) );
         return -1;
     }
@@ -2121,9 +2190,10 @@ char            hex[49];                /* Character work areas      */
     memcpy (blkp, xbuf, blklen);
 
     /* Check that there is room in the directory block pointer array */
-    if (dirblkn >= MAXDBLK)
+    if (dirblkn >= nMaxDBLK)
     {
-        XMERRF ( MSG( HHC02545, "E", MAXDBLK ) );
+        // "Internal error: Number of directory blocks exceeds MAXDBLK of %d"
+        XMERRF ( MSG( HHC02545, "E", nMaxDBLK ) );
         return -1;
     }
 
@@ -2140,6 +2210,7 @@ char            hex[49];                /* Character work areas      */
     dirrem = (dirptr[0] << 8) | dirptr[1];
     if (dirrem < 2 || dirrem > 256)
     {
+        // "Invalid directory block byte count"
         XMERR (MSG( HHC02546, "E" ) );
         return -1;
     }
@@ -2165,6 +2236,8 @@ char            hex[49];                /* Character work areas      */
         make_asciiz (memname, sizeof(memname), dirent->pds2name, 8);
 
         /* Display the directory entry */
+
+        // "%s %-8.8s TTR[%02X%02X%02X] "
         XMINFF (3, MSG_C( HHC02555, "I", (dirent->pds2indc & PDS2INDC_ALIAS) ? " Alias" : "Member",
                                         memname, dirent->pds2ttrp[0],
                                         dirent->pds2ttrp[1], dirent->pds2ttrp[2] ) );
@@ -2232,6 +2305,7 @@ int             i;                      /* Array subscript           */
     {
         if (memcmp(ttrptr, ttrtab[i].origttr, 3) == 0)
         {
+            // "Member %s TTR[%02X%02X%02X] replaced by TTR[%02X%02X%02X]"
             XMINFF (4, MSG( HHC02556, "I", memname, ttrptr[0], ttrptr[1], ttrptr[2],
                     ttrtab[i].outpttr[0], ttrtab[i].outpttr[1],
                     ttrtab[i].outpttr[2] ) );
@@ -2241,6 +2315,8 @@ int             i;                      /* Array subscript           */
     }
 
     /* Return error if TTR not found in conversion table */
+
+    // "Member %s TTR[%02X%02X%02X] not found in dataset"
     XMERRF ( MSG( HHC02557, "I", memname, ttrptr[0], ttrptr[1], ttrptr[2] ) );
     return -1;
 
@@ -2302,6 +2378,7 @@ BYTE            notelist[1024];         /* Note list                 */
     cyl = (dsstart + trk) / heads;
     head = (dsstart + trk) % heads;
 
+    // "Member %s Updating note list for member at TTR[%04X%02X] CCHHR[%04X%04X%02X]"
     XMINFF (4, MSG( HHC02558, "I", memname, trk, rec, cyl, head, rec ) );
 
     /* Save the current position in the output file */
@@ -2312,6 +2389,7 @@ BYTE            notelist[1024];         /* Note list                 */
     rc = read_track( cif, cyl, (U8) head );
     if (rc < 0)
     {
+        // "File %s: read error at cyl[%04X/%d] head[%04X/%d]"
         XMERRF ( MSG( HHC02547, "E", ofname, cyl, cyl, head, head ) );
         return -1;
     }
@@ -2327,6 +2405,7 @@ BYTE            notelist[1024];         /* Note list                 */
         || fetch_hw( trkhdr.head ) != head
     )
     {
+        // "File %s: cyl[%04X/%d] head[%04X/%d] invalid track header %02X%02X%02X%02X%02X"
         XMERRF ( MSG( HHC02548, "E", ofname, cyl, cyl, head, head,
                                      trkhdr.bin, trkhdr.cyl[0], trkhdr.cyl[1],
                                      trkhdr.head[0], trkhdr.head[1] ) );
@@ -2343,6 +2422,7 @@ BYTE            notelist[1024];         /* Note list                 */
         /* Check for end of track */
         if (memcmp( &rechdr, &CKD_ENDTRK, CKD_ENDTRK_SIZE ) == 0)
         {
+            // "File %s: cyl[%04X/%d] head[%04X/%d] rec[%02X/%d] note list record not found"
             XMERRF ( MSG( HHC02549, "E", ofname, cyl, cyl, head, head, rec, rec ) );
             return -1;
         }
@@ -2363,6 +2443,7 @@ BYTE            notelist[1024];         /* Note list                 */
     /* Check that the data length is sufficient */
     if (dlen < nllen)
     {
+        // "Member %s Note list at cyl[%04X/%d] head[%04X/%d] rec[%02X/%d] dlen[%d] is too short for %d TTRs"
         XMERRF ( MSG( HHC02559, "E", memname, cyl, cyl, head, head, rec, rec, dlen, numnl ) );
         return -1;
     }
@@ -2390,10 +2471,12 @@ BYTE            notelist[1024];         /* Note list                 */
     rc = read_track( cif, curcyl, (U8) curhead );
     if (rc < 0)
     {
+        // "File %s: read error at cyl[%04X/%d] head[%04X/%d]"
         XMERRF ( MSG( HHC02547, "E", ofname, curcyl, curcyl, curhead, curhead ) );
         return -1;
     }
 
+    // "Updating cyl[%04X/%d] head[%04X/%d] rec[%02X/%d]; kl[%d] dl[%d]"
     XMINFF (4, MSG( HHC02523, "I", cyl, cyl, head, head, rec, rec, klen, dlen ) );
 
     return 0;
@@ -2440,6 +2523,7 @@ char            memname[9];             /* Member name (ASCIIZ)      */
     dirrem = (dirptr[0] << 8) | dirptr[1];
     if (dirrem < 2 || dirrem > 256)
     {
+        // "Invalid directory block byte count"
         XMERR ( MSG( HHC02546, "E" ) );
         return -1;
     }
@@ -2587,6 +2671,7 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
     xfd = HOPEN (pathname, O_RDONLY|O_BINARY);
     if (xfd < 0)
     {
+        // "File %s; %s error: %s"
         XMERRF ( MSG( HHC02468, "E", xfname, "open()", strerror( errno ) ) );
         return -1;
     }
@@ -2595,15 +2680,17 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
     xbuf = malloc (65536);
     if (xbuf == NULL)
     {
+        // "Storage allocation for %s using %s failed: %s"
         XMERRF ( MSG( HHC02544, "E", "input buffer", "malloc()", strerror(errno) ) );
         close (xfd);
         return -1;
     }
 
     /* Obtain storage for the directory block array */
-    dirblka = (DATABLK**)malloc (sizeof(DATABLK*) * MAXDBLK);
+    dirblka = (DATABLK**)malloc (sizeof(DATABLK*) * nMaxDBLK);
     if (dirblka == NULL)
     {
+        // "Storage allocation for %s using %s failed: %s"
         XMERRF ( MSG( HHC02544, "E", "directory block array", "malloc()", strerror(errno) ) );
         free (xbuf);
         close (xfd);
@@ -2611,9 +2698,10 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
     }
 
     /* Obtain storage for the TTR conversion table */
-    ttrtab = (TTRCONV*)malloc (sizeof(TTRCONV) * MAXTTR);
+    ttrtab = (TTRCONV*)malloc (sizeof(TTRCONV) * nMaxTTR);
     if (ttrtab == NULL)
     {
+        // "Storage allocation for %s using %s failed: %s"
         XMERRF ( MSG( HHC02544, "E", "TTR table", "malloc()", strerror(errno) ) );
         free (xbuf);
         free (dirblka);
@@ -2625,6 +2713,8 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
     dsstart = (outcyl * heads) + outhead;
 
     /* Display the file information message */
+
+    // "File %s: Processing"
     XMINFF (1, MSG( HHC02560, "I", xfname ) );
 
     /* Read each logical record */
@@ -2647,6 +2737,8 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
         {
             /* Extract the control record name */
             make_asciiz (xrecname, sizeof(xrecname), xbuf, 6);
+
+            // "Control record: %s len[%d]"
             XMINFF (4, MSG( HHC02561, "I", xrecname, xreclen ) );
 
             /* Exit if control record is a trailer record */
@@ -2672,6 +2764,8 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
             {
                 datafiln++;
                 datarecn = 0;
+
+                // "File number:    %d %s"
                 XMINFF (4, MSG( HHC02562, "I", datafiln, datafiln == copyfiln ? "(selected)" : "(not selected)" ) );
             }
 
@@ -2682,6 +2776,8 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
 
         /* Process data records */
         datarecn++;
+
+        // "Data record:    len[%d]"
         XMINFF (4, MSG( HHC02563, "I", xreclen ) );
         if (infolvl >= 5) data_dump (xbuf, xreclen);
 
@@ -2743,12 +2839,15 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
                         &outtrk, &outcyl, &outhead, &outrec);
             if (rc < 0)
             {
+                // "File %s: %s error: input record CCHHR[%04X%04X%02X] (TTR[%04X%02X]) kl[%d] dl[%d]"
                 XMERRF ( MSG( HHC02570, "E", ofname, "write_block()",
                         blkcyl, blkhead, blkrec,
                         blktrk, blkrec, keylen, datalen ) );
                 return -1;
             }
 
+            // "Input record:   CCHHR[%04X%04X%02X] (TTR[%04X%02X]) kl[%d] dl[%d]\n" \
+            //       "HHC02564I relocated to:   CCHHR[%04X%04X%02X] (TTR[%04X%02X])"
             XMINFF (4, MSG( HHC02564, "I", blkcyl, blkhead, blkrec, blktrk, blkrec, keylen, datalen,
                                            outcyl, outhead, outrec, outtrk, outrec ) );
 
@@ -2767,9 +2866,10 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
             else /* Not a directory block */
             {
                 /* Check that TTR conversion table is not full */
-                if (numttr >= MAXTTR)
+                if (numttr >= nMaxTTR)
                 {
-                    XMERRF ( MSG( HHC02571, "E", MAXTTR ) );
+                    // "Internal error: TTR count exceeds MAXTTR of %d"
+                    XMERRF ( MSG( HHC02571, "E", nMaxTTR ) );
                     return -1;
                 }
 
@@ -2794,6 +2894,7 @@ char            pathname[MAX_PATH];     /* xfname in host path format*/
     /* Check for unsupported xmit utility */
     if (method == METHOD_XMIT && copyfiln == 0)
     {
+        // "File %s: XMIT utility file is not in IEBCOPY format; file is not loaded"
         XMERRF ( MSG( HHC02572, "W", xfname ) );
     }
 
@@ -2999,6 +3100,7 @@ static char    *sys1name[NUM_SYS1_DATASETS] =
                 &outtrk, &outcyl, &outhead, &outrec);
     if (rc < 0) return -1;
 
+    // "Catalog block:  cyl[%04X/%d] head[%04X/%d] rec[%02X/%d]"
     XMINFF (4, MSG( HHC02565, "I", outcyl, outcyl, outhead, outhead, outrec, outrec ) );
 
     if (infolvl >= 5)
@@ -3108,6 +3210,7 @@ static char    *sys1name[NUM_SYS1_DATASETS] =
                 &outtrk, &outcyl, &outhead, &outrec);
     if (rc < 0) return -1;
 
+    // "Catalog block:  cyl[%04X/%d] head[%04X/%d] rec[%02X/%d]"
     XMINFF (4, MSG( HHC02565, "I", outcyl, outcyl, outhead, outhead, outrec, outrec ) );
 
     if (infolvl >= 5) data_dump (datablk.kdarea, keylen + datalen);
@@ -3129,6 +3232,7 @@ static char    *sys1name[NUM_SYS1_DATASETS] =
                     &outtrk, &outcyl, &outhead, &outrec);
         if (rc < 0) return -1;
 
+        // "Catalog block:  cyl[%04X/%d] head[%04X/%d] rec[%02X/%d]"
         XMINFF (4, MSG( HHC02565, "I", outcyl, outcyl, outhead, outhead, outrec, outrec ) );
 
         if (infolvl >= 5) data_dump (datablk.kdarea, keylen + datalen);
@@ -3281,6 +3385,7 @@ DATABLK         datablk;                /* Data block                */
                 &outtrk, &outcyl, &outhead, &outrec);
     if (rc < 0) return -1;
 
+    // "DIP complete:   cyl[%04X/%d] head[%04X/%d] rec[%02X/%d]"
     XMINFF (3, MSG( HHC02566, "I", outcyl, outcyl, outhead, outhead, outrec, outrec ) );
 
     if (infolvl >= 5) data_dump (diphdr, sizeof(DIPHDR));
@@ -3352,11 +3457,13 @@ char            pathname[MAX_PATH];     /* sfname in host path format*/
     /* Perform some checks */
     if (!(dsorg & DSORG_PS) && !(dsorg & DSORG_DA))
     {
+        // "File %s: invalid dsorg[0x%02X] for SEQ processing; dsorg must be PS or DA"
         XMERRF ( MSG( HHC02573, "E", sfname, dsorg ) );
         return -1;
     }
     if (recfm != RECFM_FORMAT_F && recfm != (RECFM_FORMAT_F|RECFM_BLOCKED))
     {
+        // "File %s: invalid recfm[0x%02X] for SEQ processing; recfm must be F or FB"
         XMERRF ( MSG( HHC02574, "E", sfname, recfm ) );
         return -1;
     }
@@ -3365,11 +3472,13 @@ char            pathname[MAX_PATH];     /* sfname in host path format*/
     if (lrecl == 0 || blksz % lrecl != 0
      || (blksz != lrecl && recfm == RECFM_FORMAT_F))
     {
+        // "File %s: invalid lrecl[%d] or blksize[%d] for SEQ processing"
         XMERRF ( MSG( HHC02575, "E", sfname, lrecl, blksz ) );
         return -1;
     }
     if (keyln > 0 && blksz > lrecl)
     {
+        // "File %s: invalid keyln[%d] for SEQ processing; keyln must be 0 for blocked"
         XMERR ( MSG( HHC02576, "E", sfname, keyln ) );
         return -1;
     }
@@ -3379,6 +3488,7 @@ char            pathname[MAX_PATH];     /* sfname in host path format*/
     sfd = HOPEN (pathname, O_RDONLY|O_BINARY);
     if (sfd < 0)
     {
+        // "File %s; %s error: %s"
         XMERRF ( MSG( HHC02468, "E", sfname, "open()", strerror(errno) ) );
         return -1;
     }
@@ -3387,6 +3497,7 @@ char            pathname[MAX_PATH];     /* sfname in host path format*/
     rc = fstat(sfd, &st);
     if (rc < 0)
     {
+        // "File %s; %s error: %s"
         XMERRF ( MSG( HHC02468, "E", sfname, "fstat()", strerror(errno) ) );
         close (sfd);
         return -1;
@@ -3397,6 +3508,7 @@ char            pathname[MAX_PATH];     /* sfname in host path format*/
     rc = read_track( cif, *nxtcyl, (U8) *nxthead );
     if (rc < 0)
     {
+        // "File %s: read error at cyl[%04X/%d] head[%04X/%d]"
         XMERRF ( MSG( HHC02547, "E", ofname, *nxtcyl, *nxtcyl, *nxthead, *nxthead ) );
         close (sfd);
         return -1;
@@ -3408,6 +3520,7 @@ char            pathname[MAX_PATH];     /* sfname in host path format*/
         rc = read (sfd, &datablk.kdarea, blksz < size ? blksz : size);
         if (rc < (blksz < size ? blksz : size))
         {
+            // "File %s; %s error: %s"
             XMERRF ( MSG( HHC02468, "E", sfname, "read()", strerror(errno) ) );
             close (sfd);
             return -1;
@@ -3600,8 +3713,8 @@ read_ctrl_stmt (FILE *cfp, char *cfname, char *stmt, int sbuflen,
             // (error)
             {
                 char msgbuf[64];
-
                 MSGBUF( msgbuf, "line[%d] fgets()", stmtno );
+
                 // "File %s; %s error: %s"
                 XMERRF( MSG( HHC02468, "E", cfname, msgbuf, strerror( errno )));
             }
@@ -3629,6 +3742,7 @@ read_ctrl_stmt (FILE *cfp, char *cfname, char *stmt, int sbuflen,
         stmtlen = (int) strlen( stmt );
 
         /* Print the input statement */
+
         // "File %s[%04d]: %s"
         XMINFF( 0, MSG( HHC02567, "I", cfname, stmtno, stmt ));
 
@@ -3723,8 +3837,10 @@ char           *strtok_str = NULL;      /* last token                */
     if (pdsnam == NULL || pimeth == NULL)
     {
         if (pdsnam == NULL)
+            // "%s missing"
             XMERR ( MSG(HHC02578, "E", "DSNAME" ) );
         if (pimeth == NULL)
+            // "%s missing"
             XMERR ( MSG(HHC02578, "E", "Initialization method" ) );
         return -1;
     }
@@ -3763,6 +3879,7 @@ char           *strtok_str = NULL;      /* last token                */
         *method = METHOD_SEQ;
     else
     {
+        // "Initialization method %s is invalid"
         XMERRF ( MSG( HHC02579, "E", pimeth ) );
         return -1;
     }
@@ -3773,6 +3890,7 @@ char           *strtok_str = NULL;      /* last token                */
         pifile = strtok_r (NULL, " \t", &strtok_str);
         if (pifile == NULL)
         {
+            // "Initialization file name missing"
             XMERR ( MSG( HHC02580, "E" ) );
             return -1;
         }
@@ -3790,6 +3908,7 @@ char           *strtok_str = NULL;      /* last token                */
         *units = 'T';
     else
     {
+        // "Unit of allocation %s is invalid"
         XMERRF ( MSG( HHC02581, "E", punits ) );
         return -1;
     }
@@ -3800,6 +3919,7 @@ char           *strtok_str = NULL;      /* last token                */
 
     if (sscanf(psppri, "%u%c", sppri, &c) != 1)
     {
+        // "%s allocation of %s %sS is invalid"
         XMERRF ( MSG( HHC02582, "E", "Primary", psppri, punits ) );
         return -1;
     }
@@ -3810,6 +3930,7 @@ char           *strtok_str = NULL;      /* last token                */
 
     if (sscanf(pspsec, "%u%c", spsec, &c) != 1)
     {
+        // "%s allocation of %s %sS is invalid"
         XMERRF ( MSG( HHC02582, "E", "Secondary", pspsec, punits ) );
         return -1;
     }
@@ -3820,6 +3941,7 @@ char           *strtok_str = NULL;      /* last token                */
 
     if (sscanf(pspdir, "%u%c", spdir, &c) != 1)
     {
+        // "Directory space %s is invalid"
         XMERRF ( MSG( HHC02583, "E", pspdir ) );
         return -1;
     }
@@ -3839,6 +3961,7 @@ char           *strtok_str = NULL;      /* last token                */
         *dsorg = DSORG_PO;
     else
     {
+        // "Dataset organization (DSORG) %s is invalid"
         XMERRF ( MSG( HHC02584, "E", pdsorg ) );
         return -1;
     }
@@ -3864,6 +3987,7 @@ char           *strtok_str = NULL;      /* last token                */
         *recfm = RECFM_FORMAT_U;
     else
     {
+        // "Record format (RECFM) %s is invalid"
         XMERRF ( MSG( HHC02585, "E", precfm ) );
         return -1;
     }
@@ -3875,6 +3999,7 @@ char           *strtok_str = NULL;      /* last token                */
     if (sscanf(plrecl, "%u%c", lrecl, &c) != 1
         || *lrecl > MAX_DATALEN)
     {
+        // "Logical record length (LRECL) %s is invalid"
         XMERRF ( MSG( HHC02586, "E", plrecl ) );
         return -1;
     }
@@ -3886,6 +4011,7 @@ char           *strtok_str = NULL;      /* last token                */
     if (sscanf(pblksz, "%u%c", blksz, &c) != 1
         || *blksz > MAX_DATALEN)
     {
+        // "Block size (BLKSIZE) %s is invalid"
         XMERRF ( MSG( HHC02587, "E", pblksz ) );
         return -1;
     }
@@ -3897,6 +4023,7 @@ char           *strtok_str = NULL;      /* last token                */
     if (sscanf(pkeyln, "%u%c", keyln, &c) != 1
         || *keyln > 255)
     {
+        // "Key Length (KEYLEN) %s is invalid"
         XMERRF ( MSG( HHC02588, "E", pkeyln ) );
         return -1;
     }
@@ -3967,9 +4094,10 @@ int             offset = 0;             /* Offset into trkbuf        */
 int             fsflag = 0;             /* 1=Free space message sent */
 
     /* Obtain storage for the array of DSCB pointers */
-    dscbtab = (DATABLK**)malloc (sizeof(DATABLK*) * MAXDSCB);
+    dscbtab = (DATABLK**)malloc (sizeof(DATABLK*) * nMaxDSCB);
     if (dscbtab == NULL)
     {
+        // "Storage allocation for %s using %s failed: %s"
         XMERRF ( MSG( HHC02544, "E", "DSCB pointer array", "malloc()", strerror(errno) ) );
         return -1;
     }
@@ -4002,6 +4130,7 @@ int             fsflag = 0;             /* 1=Free space message sent */
         /* Exit if error in control file */
         if (rc < 0)
         {
+            // "File %s: line[%04d] error: statement is invalid"
             XMERRF ( MSG( HHC02569, "E", cfname, stmtno ) );
             return -1;
         }
@@ -4019,6 +4148,7 @@ int             fsflag = 0;             /* 1=Free space message sent */
 
         } /* end while */
 
+        // "Creating dataset %-44s at cyl[%04X/%d] head[%04X/%d]"
         XMINFF (1, MSG( HHC02568, "I", dsname, outcyl, outcyl, outhead, outhead ) );
         bcyl = outcyl;
         bhead = outhead;
@@ -4154,6 +4284,7 @@ int             fsflag = 0;             /* 1=Free space message sent */
         /* Issue free space information message */
         if (fsflag == 0)
         {
+            // "Creating dataset %-44s at cyl[%04X/%d] head[%04X/%d]"
             XMINFF (1, MSG( HHC02568, "I", "****FREE SPACE****", outcyl, outcyl, outhead, outhead ) );
             fsflag = 1;
         }
@@ -4176,9 +4307,11 @@ int             fsflag = 0;             /* 1=Free space message sent */
 
     if (outcyl > reqcyls && reqcyls != 0)
     {
+        // "Volume exceeds %d cylinders"
         XMINFF (0, MSG( HHC02590, "W", reqcyls ) );
     }
 
+    // "File %s: total cylinders written was %d"
     XMINFF (0, MSG( HHC02591, "I", ofname, outcyl ) );
 
     /* Update the VTOC pointer in the volume label */
@@ -4187,11 +4320,13 @@ int             fsflag = 0;             /* 1=Free space message sent */
            + CKD_RECHDR_SIZE + IPL2_KEYLEN + IPL2_DATALEN
            + CKD_RECHDR_SIZE + VOL1_KEYLEN + offsetof( VOL1_CKD, vtoc_CC );
 
+    // "VTOC pointer [%02X%02X%02X%02X%02X] updated"
     XMINFF (5, MSG( HHC02592, "I", volvtoc[0], volvtoc[1], volvtoc[2], volvtoc[3], volvtoc[4] ) );
 
     rc = read_track (cif, 0, 0);
     if (rc < 0)
     {
+        // "VOL1 record not readable or locatable"
         XMERR ( MSG( HHC02593, "E" ) );
         return -1;
     }
@@ -4276,7 +4411,7 @@ char           *strtok_str = NULL;      /* last token position       */
     }
 
     /* Check the number of arguments */
-    if (argc < 3 || argc > 4)
+    if (argc < 3 || argc > 7)
         argexit(4, pgm);
 
     /* The first argument is the control file name */
@@ -4292,9 +4427,33 @@ char           *strtok_str = NULL;      /* last token position       */
     /* The optional third argument is the message level */
     if (argc > 3 && argv[3] != NULL)
     {
-        if (sscanf(argv[3], "%u%c", &infolvl, &c) != 1
-            || infolvl > 5)
+        if (sscanf(argv[3], "%u%c", &infolvl, &c) != 1 || infolvl > 5)
             argexit(3, pgm);
+
+        /* The optional forth argument is the maximum number of DBLK entries */
+        if (argc > 4 && argv[4] != NULL)
+        {
+            if (sscanf( argv[4], "%u%c", &nMaxDBLK, &c) != 1 || nMaxDBLK < 0)
+                argexit(5, pgm);
+
+            /* The optional fifth argument is the maximum number of TTR entries */
+            if (argc > 5 && argv[5] != NULL)
+            {
+                if (sscanf( argv[5], "%u%c", &nMaxTTR, &c) != 1 || nMaxTTR < 0)
+                    argexit(5, pgm);
+
+                /* The optional sixth argument is the maximum number of DSCB entries */
+                if (argc > 6 && argv[6] != NULL)
+                {
+                    if (sscanf( argv[6], "%u%c", &nMaxDSCB, &c) != 1 || nMaxDSCB < 0)
+                        argexit(5, pgm);
+                }
+            }
+        }
+
+        if (!nMaxDBLK) nMaxDBLK = DEF_MAXDBLK;
+        if (!nMaxTTR ) nMaxTTR  = DEF_MAXTTR;
+        if (!nMaxDSCB) nMaxDSCB = DEF_MAXDSCB;
     }
 
     /* Open the control file */
@@ -4302,6 +4461,7 @@ char           *strtok_str = NULL;      /* last token position       */
     cfp = fopen (pathname, "r");
     if (cfp == NULL)
     {
+        // "File %s; %s error: %s"
         XMERRF ( MSG( HHC02468, "E", cfname, "fopen()", strerror( errno ) ) );
         return -1;
     }
@@ -4313,6 +4473,7 @@ char           *strtok_str = NULL;      /* last token position       */
     /* Error if end of file */
     if (rc > 0)
     {
+        // "Volume serial statement missing from %s"
         XMERRF ( MSG( HHC02500, "E", cfname ) );
         return -1;
     }
@@ -4326,6 +4487,7 @@ char           *strtok_str = NULL;      /* last token position       */
     /* Validate the volume serial number */
     if (volser == NULL || strlen(volser) == 0 || strlen(volser) > 6)
     {
+        // "Volume serial %s is invalid; %s line %d"
         XMERRF ( MSG( HHC02501, "E", volser, cfname, stmtno ) );
         return -1;
     }
@@ -4335,6 +4497,7 @@ char           *strtok_str = NULL;      /* last token position       */
     ckd = dasd_lookup (DASD_CKDDEV, sdevtp, 0, 0);
     if (ckd == NULL)
     {
+        // "Device type %s is not recognized; %s line %d"
         XMERRF ( MSG( HHC02502, "E", sdevtp, cfname, stmtno ) );
         return -1;
     }
@@ -4355,6 +4518,7 @@ char           *strtok_str = NULL;      /* last token position       */
         /* Validate the requested device size in cylinders */
         if (sscanf(sdevsz, "%u%c", &reqcyls, &c) != 1)
         {
+            // "Cylinder value %s is invalid; %s line %d"
             XMERRF ( MSG( HHC02503, "E", sdevsz, cfname, stmtno ) );
             return -1;
         }
@@ -4370,6 +4534,8 @@ char           *strtok_str = NULL;      /* last token position       */
     outtrklv = ROUND_UP( outtrklv, 512 );
 
     /* Display progress message */
+
+    // "Creating %4.4X volume %s: %u trks/cyl, %u bytes/track"
     XMINFF (0, MSG( HHC02520, "I", devtype, volser, outheads, outtrklv ) );
 
     /* Create the output file */
@@ -4386,8 +4552,10 @@ char           *strtok_str = NULL;      /* last token position       */
     if (rc < 0)
     {
 #if DASDLOAD64
+        // "Cannot create %s; %s failed"
         XMERRF ( MSG( HHC02504, "E", ofname, "create_ckd64()" ) );
 #else
+        // "Cannot create %s; %s failed"
         XMERRF ( MSG( HHC02504, "E", ofname, "create_ckd()" ) );
 #endif
         return -1;
@@ -4402,8 +4570,10 @@ char           *strtok_str = NULL;      /* last token position       */
     if (!cif)
     {
 #if DASDLOAD64
+        // "Cannot create %s; %s failed"
         XMERRF ( MSG( HHC02504, "E", ofname, "open_ckd64_image()" ) );
 #else
+        // "Cannot create %s; %s failed"
         XMERRF ( MSG( HHC02504, "E", ofname, "open_ckd_image()" ) );
 #endif
         return -1;
@@ -4424,6 +4594,8 @@ char           *strtok_str = NULL;      /* last token position       */
         cckdblk.batchml = infolvl;   /* yes, save message level in cckdblk for cckddasd   */
 
     /* Display progress message */
+
+    // "Loading %4.4X volume %s"
     XMINFF (0, MSG( HHC02521, "I", devtype, volser ) );
 
     /* Write track zero to the DASD image file */
