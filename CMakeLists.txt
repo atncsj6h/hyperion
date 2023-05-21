@@ -340,6 +340,9 @@ set( DASD_UTILITIES
   dasdcopy64  dasdcopy
   dasdinit64  dasdinit
   dasdload64  dasdload
+  dasdls
+  dasdpdsu
+  dasdseq
 )
 
 # macro to create and install symbolic links
