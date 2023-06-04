@@ -1551,6 +1551,7 @@ static BYTE* build_logo( char** logo_stmts, size_t num_stmts,
 
     if (!logo_stmts)
     {
+        printf("******** using builtin herclogo at %d\n", __LINE__ );
         logo_stmts = herclogo; /* use built-in default */
         num_stmts = sizeof( herclogo ) / sizeof( char* );
     }
@@ -3219,6 +3220,7 @@ size_t                  logoheight;     /* Logo file number of lines */
         }
         else // (use hard coded built-in default logo)
         {
+            printf("******** using builtin herclogo at %d\n", __LINE__ );
             logoheight = sizeof( herclogo ) / sizeof( char* );
             logobfr    = build_logo( herclogo, logoheight, &len, NULL );
         }

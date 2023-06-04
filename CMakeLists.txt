@@ -149,12 +149,19 @@ add_compile_definitions(
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # rpath handling
-if( 1 )
+set( WITH_RPATH 1 )
+if( WITH_RPATH )
   set( CMAKE_SKIP_BUILD_RPATH  FALSE )
   set( CMAKE_BUILD_WITH_INSTALL_RPATH TRUE )
   set( CMAKE_INSTALL_RPATH "@executable_path/../${INST_LIB_DIR}" )
   set( CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE )
 endif()
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+set( CMAKE_C_STANDARD 99 )
+set( CMAKE_C_STANDARD_REQUIRED YES )
+set( CMAKE_CXX_STANDARD 11 )
+set( CMAKE_CXX_STANDARD_REQUIRED YES )
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 set( CMAKE_POSITION_INDEPENDENT_CODE ON )
@@ -209,7 +216,6 @@ if( NOT HAVE_BZLIB )
  'libbz2' not available" )
 endif()
 set( LIBBZ2 "bz2" )
-
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # compile_definitions
@@ -296,7 +302,7 @@ install( TARGETS hercifc
   RUNTIME DESTINATION ${INST_BIN_DIR}
 )
 
-if( 1 )
+if( WITH_RPATH )
 add_custom_command(
   TARGET hercifc POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} install_name_tool -delete_rpath "@executable_path/../lib" hercifc
@@ -312,7 +318,8 @@ target_link_libraries( hercutun
 install( TARGETS hercutun
   RUNTIME DESTINATION ${INST_BIN_DIR}
 )
-if( 1 )
+
+if( WITH_RPATH )
 add_custom_command(
   TARGET hercutun POST_BUILD
   COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_RUNTIME_OUTPUT_DIRECTORY} install_name_tool -delete_rpath "@executable_path/../lib" hercutun
@@ -366,8 +373,8 @@ set( dasdcopy_SYMLINKS
 )
 
 set( dasdcopy64_SYMLINKS
-  cckd2ckd64
-  cfba2fba64
+  cckd642ckd
+  cfba642fba
   ckd2cckd64
   fba2cfba64
 )
