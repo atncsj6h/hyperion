@@ -53,7 +53,7 @@
 #define CCKD_BZIP2 1
 
 /* Define to provide additional information about this build */
-#define CUSTOM_BUILD_STRING "Built using Hercules-Helper"
+#define CUSTOM_BUILD_STRING "Built using Cmake"
 
 /* Define to enable extra debugging code (TRACE/VERIFY/ASSERT macros) */
 /* #undef DEBUG */

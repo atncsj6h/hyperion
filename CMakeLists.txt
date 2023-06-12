@@ -200,6 +200,11 @@ pkg_config(
 )
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+find_library( LIBZ z)
+find_library( LIBBZ2 bz2 )
+
+if( 0 )
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 include( CheckLibraryExists )
 
 check_library_exists( z   zlibVersion       "" HAVE_ZLIB )
@@ -216,6 +221,8 @@ if( NOT HAVE_BZLIB )
  'libbz2' not available" )
 endif()
 set( LIBBZ2 "bz2" )
+
+endif()
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # compile_definitions
@@ -465,6 +472,21 @@ install( DIRECTORY share/testsuite
 )
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# macro to install plain files
+macro( install_F argv dest)
+  install( FILES ${CMAKE_SOURCE_DIR}/${argv}
+    DESTINATION ${dest}
+    PERMISSIONS OWNER_READ OWNER_WRITE
+                GROUP_READ
+                WORLD_READ )
+endmacro( install_F )
+
+# install some samples
+install_F( herclogo.txt "${INST_DATADIR}" )
+install_F( hercules.cnf "${INST_DATADIR}" )
+install_F( hercules.cnf.rexx "${INST_DATADIR}" )
+
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # macro to install files as executables
 macro( install_X argv )
   install( FILES ${CMAKE_SOURCE_DIR}/${argv}
@@ -479,7 +501,9 @@ install_X( share/testsuite/runtestsuite.sh )
 
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # the support files
-foreach( X portable-startup.sh )
+foreach( X
+  portable-startup.sh
+  path.remove path.append path.here )
   install_X( support/bin/${X} )
 endforeach()
 

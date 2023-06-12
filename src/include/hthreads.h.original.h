@@ -7,8 +7,8 @@
 /*   (http://www.hercules-390.org/herclic.html) as modifications to  */
 /*   Hercules.                                                       */
 
-#ifndef hthreads_h_included
-#define hthreads_h_included
+#ifndef _HTHREADS_H
+#define _HTHREADS_H
 
 #include "hercules.h"
 
@@ -16,6 +16,18 @@
 /*                 Locking/Threading Models                          */
 /*-------------------------------------------------------------------*/
 
+#if defined( OPTION_FTHREADS )
+#include "fthreads.h"
+#define HTHREAD_MUTEX_NORMAL            FTHREAD_MUTEX_NORMAL
+#define HTHREAD_MUTEX_ERRORCHECK        FTHREAD_MUTEX_ERRORCHECK
+#define HTHREAD_MUTEX_RECURSIVE         FTHREAD_MUTEX_RECURSIVE
+#define HTHREAD_RWLOCK_SHARED           0  /* fthreads doesn't have r/w locks (yet) */
+#define HTHREAD_RWLOCK_PRIVATE          0  /* fthreads doesn't have r/w locks (yet) */
+#define HTHREAD_CREATE_DETACHED         FTHREAD_CREATE_DETACHED
+#define HTHREAD_CREATE_JOINABLE         FTHREAD_CREATE_JOINABLE
+#endif /* defined( OPTION_FTHREADS ) */
+
+#if !defined( OPTION_FTHREADS )
 #include <pthread.h>
 #define HTHREAD_MUTEX_NORMAL            PTHREAD_MUTEX_NORMAL
 #define HTHREAD_MUTEX_ERRORCHECK        PTHREAD_MUTEX_ERRORCHECK
@@ -24,6 +36,7 @@
 #define HTHREAD_RWLOCK_PRIVATE          PTHREAD_PROCESS_PRIVATE
 #define HTHREAD_CREATE_DETACHED         PTHREAD_CREATE_DETACHED
 #define HTHREAD_CREATE_JOINABLE         PTHREAD_CREATE_JOINABLE
+#endif /* !defined( OPTION_FTHREADS ) */
 
 /*-------------------------------------------------------------------*/
 /*              Hercules default locking model                       */
@@ -48,8 +61,89 @@
 #endif
 
 /*-------------------------------------------------------------------*/
+/*                      Fish Threads                                 */
+/*-------------------------------------------------------------------*/
+#if defined( OPTION_FTHREADS )
+typedef fthread_t               hthread_t;
+typedef hthread_t               HID;    /* Hercules thread-id type   */
+typedef HID                     TID;    /* Generic thread-id type    */
+typedef fthread_cond_t          COND;
+typedef fthread_attr_t          ATTR;
+typedef fthread_mutexattr_t     MATTR;
+//pedef fthread_rwlockattr_t    RWATTR;   /* fthreads doesn't have r/w locks (yet) */
+#define RWATTR MATTR                      /* fthreads doesn't have r/w locks (yet) */
+typedef fthread_mutex_t         HLOCK;
+//pedef fthread_rwlock_t        HRWLOCK;  /* fthreads doesn't have r/w locks (yet) */
+#define HRWLOCK HLOCK                     /* fthreads doesn't have r/w locks (yet) */
+
+#define hthread_mutexattr_init( pla )           fthread_mutexattr_init( pla )
+#define hthread_mutexattr_settype( pla, typ )   fthread_mutexattr_settype( (pla), (typ) )
+#define hthread_mutexattr_destroy( pla )        fthread_mutexattr_destroy( pla )
+
+#define hthread_mutex_init( plk, pla )          fthread_mutex_init( (plk), (pla) )
+#define hthread_mutex_lock( plk )               fthread_mutex_lock( plk )
+#define hthread_mutex_trylock( plk )            fthread_mutex_trylock( plk )
+#define hthread_mutex_unlock( plk )             fthread_mutex_unlock( plk )
+#define hthread_mutex_destroy( plk )            fthread_mutex_destroy( plk )
+
+#if 0           /* fthreads doesn't have r/w locks (yet) */
+#define hthread_rwlockattr_init( pla )          fthread_rwlockattr_init( pla )
+#define hthread_rwlockattr_setpshared( pla, s ) fthread_rwlockattr_setpshared( (pla), (s) )
+#define hthread_rwlockattr_destroy( pla )       fthread_rwlockattr_destroy( pla )
+#else           /* fthreads doesn't have r/w locks (yet) */
+#define hthread_rwlockattr_init( pla )          fthread_mutexattr_init( pla )
+#define hthread_rwlockattr_setpshared( pla, s ) fthread_mutexattr_settype( (pla), HTHREAD_MUTEX_DEFAULT )
+#define hthread_rwlockattr_destroy( pla )       fthread_mutexattr_destroy( pla )
+#endif
+#if 0           /* fthreads doesn't have r/w locks (yet) */
+#define hthread_rwlock_init( plk, pla )         fthread_rwlock_init( (plk), (pla) )
+#define hthread_rwlock_destroy( plk )           fthread_rwlock_destroy( plk )
+#define hthread_rwlock_rdlock( plk )            fthread_rwlock_rdlock( plk )
+#define hthread_rwlock_wrlock( plk )            fthread_rwlock_wrlock( plk )
+#define hthread_rwlock_unlock( plk )            fthread_rwlock_unlock( plk )
+#define hthread_rwlock_tryrdlock( plk )         fthread_rwlock_tryrdlock( plk )
+#define hthread_rwlock_trywrlock( plk )         fthread_rwlock_trywrlock( plk )
+#else           /* fthreads doesn't have r/w locks (yet) */
+#define hthread_rwlock_init( plk, pla )         fthread_mutex_init( (plk), (pla) )
+#define hthread_rwlock_destroy( plk )           fthread_mutex_destroy( plk )
+#define hthread_rwlock_rdlock( plk )            fthread_mutex_lock( plk )
+#define hthread_rwlock_wrlock( plk )            fthread_mutex_lock( plk )
+#define hthread_rwlock_unlock( plk )            fthread_mutex_unlock( plk )
+#define hthread_rwlock_tryrdlock( plk )         fthread_mutex_trylock( plk )
+#define hthread_rwlock_trywrlock( plk )         fthread_mutex_trylock( plk )
+#endif
+
+#define hthread_cond_init( plc )                fthread_cond_init( plc )
+#define hthread_cond_wait( plc, plk )           fthread_cond_wait( (plc), (plk) )
+#define hthread_cond_timedwait( plc, plk, tm )  fthread_cond_timedwait( (plc), (plk), (tm) )
+#define hthread_cond_signal( plc )              fthread_cond_signal( plc )
+#define hthread_cond_broadcast( plc )           fthread_cond_broadcast( plc )
+#define hthread_cond_destroy( plc )             fthread_cond_destroy( plc )
+
+#define hthread_attr_init( pat )                fthread_attr_init( pat )
+#define hthread_attr_setstacksize( pat, z )     fthread_attr_setstacksize( (pat), (z) )
+#define hthread_attr_setdetachstate( pat, s )   fthread_attr_setdetachstate( (pat), (s) )
+#define hthread_attr_destroy( pat )             fthread_attr_destroy( pat )
+
+#define hthread_create( pt, pa, fn, ar )        fthread_create( (hthread_t*)(pt), (pa), (fn), (ar) )
+#define hthread_detach( tid )                   fthread_detach( (hthread_t)(tid) )
+#define hthread_join( tid, prc )                fthread_join( (hthread_t)(tid), (prc) )
+#define hthread_exit( rc )                      fthread_exit( rc )
+#define hthread_self()                          fthread_self()
+#define hthread_equal( tid1, tid2 )             fthread_equal( (hthread_t)(tid1), (hthread_t)(tid2) )
+#define hthread_get_handle( tid )               fthread_get_handle( (hthread_t)(tid) )
+/* Thread scheduling functions */
+#define hthread_getschedparam( tid, po, sc )    fthread_getschedparam( (hthread_t)(tid), (po), (sc) )
+#define hthread_setschedparam( tid, po, sc )    fthread_setschedparam( (hthread_t)(tid), (po), (sc) )
+#define hthread_get_priority_min( po )          fthread_get_priority_min( po )
+#define hthread_get_priority_max( po )          fthread_get_priority_max( po )
+
+#endif /* defined( OPTION_FTHREADS ) */
+
+/*-------------------------------------------------------------------*/
 /*                      Posix Threads                                */
 /*-------------------------------------------------------------------*/
+#if !defined( OPTION_FTHREADS )
 typedef pthread_t               hthread_t;
 typedef hthread_t               HID;    /* Hercules thread-id type   */
 typedef HID                     TID;    /* Generic thread-id type    */
@@ -110,18 +204,7 @@ typedef pthread_rwlock_t        HRWLOCK;
 #define hthread_setschedparam( tid, po, sc )    pthread_setschedparam( (hthread_t)(tid), (po), (sc) )
 #define hthread_get_priority_min( po )          sched_get_priority_min( po )
 #define hthread_get_priority_max( po )          sched_get_priority_max( po )
-
-/*-------------------------------------------------------------------*/
-/*  QOS support                                                      */
-/*  one more macro will not hurt anybody                             */
-/*-------------------------------------------------------------------*/
-
-#define SET_THREAD_PRIORITY( QOS, PRI ) { \
-if ( DARWIN ) \
-  rc = pthread_set_qos_class_self_np( ( QOS ), ( PRI ) -15 ) ; \
-else \
-  rc = set_thread_priority( ( PRI ) ) ; \
-}
+#endif /* !defined( OPTION_FTHREADS ) */
 
 /*-------------------------------------------------------------------*/
 /*       Hercules threading macros, consts and typedefs              */
@@ -304,4 +387,4 @@ HT_DLL_IMPORT const char* hthread_get_thread_name ( TID tid, char* buffer16 );
 /*-------------------------------------------------------------------*/
 #include "pttrace.h"            /* defines Primary PTT Tracing macro */
 
-#endif /* hthreads_h_included */
+#endif /* _HTHREADS_H */

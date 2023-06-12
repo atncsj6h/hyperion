@@ -1551,7 +1551,6 @@ static BYTE* build_logo( char** logo_stmts, size_t num_stmts,
 
     if (!logo_stmts)
     {
-        printf("******** using builtin herclogo at %d\n", __LINE__ );
         logo_stmts = herclogo; /* use built-in default */
         num_stmts = sizeof( herclogo ) / sizeof( char* );
     }
@@ -3220,7 +3219,6 @@ size_t                  logoheight;     /* Logo file number of lines */
         }
         else // (use hard coded built-in default logo)
         {
-            printf("******** using builtin herclogo at %d\n", __LINE__ );
             logoheight = sizeof( herclogo ) / sizeof( char* );
             logobfr    = build_logo( herclogo, logoheight, &len, NULL );
         }
@@ -3408,7 +3406,7 @@ int prev_rlen3270;
     UNREFERENCED( arg );
 
     /* Set server thread priority; ignore any errors */
-    set_thread_priority( sysblk.srvprio );
+    SET_THREAD_PRIORITY( sysblk.qos_default, sysblk.srvprio );
 
     // "Thread id "TIDPAT", prio %2d, name %s started"
     LOG_THREAD_BEGIN( CON_CONN_THREAD_NAME  );

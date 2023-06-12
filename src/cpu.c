@@ -2354,7 +2354,7 @@ int   rc;
     }
 
     /* Set CPU thread priority */
-    set_thread_priority( sysblk.cpuprio);
+    SET_THREAD_PRIORITY( sysblk.qos_default, sysblk.cpuprio);
 
     /* Display thread started message on control panel */
 

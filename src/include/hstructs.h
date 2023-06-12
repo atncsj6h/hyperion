@@ -1043,6 +1043,12 @@ atomic_update64( &sysblk.txf_stats[ contran ? 1 : 0 ].txf_ ## ctr, +1 )
         int     srvprio;                /* Listeners thread priority */
         TID     httptid;                /* HTTP listener thread id   */
 
+        qos_class_t qos_user_interactive ;
+        qos_class_t qos_user_initiated ;
+        qos_class_t qos_default ;
+        qos_class_t qos_utility ;
+        qos_class_t qos_background ;
+
      /* Fields used by SYNCHRONIZE_CPUS */
         bool    syncing;                /* 1=Sync in progress        */
         CPU_BITMAP sync_mask;           /* CPU mask for syncing CPUs */

@@ -166,6 +166,7 @@ CPU_BITMAP      intmask = 0;            /* Interrupt CPU mask        */
 /*-------------------------------------------------------------------*/
 void* timer_thread ( void* argp )
 {
+int     rc;
 int     i;                              /* Loop index                */
 REGS   *regs;                           /* -> REGS                   */
 U64     mipsrate;                       /* Calculated MIPS rate      */
@@ -190,7 +191,7 @@ bool    txf_PPA;                        /* true == PPA assist needed */
     UNREFERENCED( argp );
 
     /* Set timer thread priority */
-    set_thread_priority( sysblk.todprio );
+    SET_THREAD_PRIORITY( sysblk.qos_user_interactive, sysblk.todprio );
 
     // "Thread id "TIDPAT", prio %2d, name %s started"
     LOG_THREAD_BEGIN( TIMER_THREAD_NAME  );
@@ -355,6 +356,7 @@ bool    txf_PPA;                        /* true == PPA assist needed */
 /*-------------------------------------------------------------------*/
 void* rubato_thread( void* argp )
 {
+    int     rc;
     int    starting_timerint;           /* Starting sysblk.timerint  */
     int    new_timerint_usecs;          /* Adjusted interval usecs   */
     int    intervals_per_second;        /* Intervals in one second   */
@@ -366,7 +368,7 @@ void* rubato_thread( void* argp )
     UNREFERENCED( argp );
 
     /* Set our thread priority to be the same as that of CPU threads */
-    set_thread_priority( sysblk.cpuprio );
+    SET_THREAD_PRIORITY( sysblk.qos_default, sysblk.cpuprio );
 
     // "Thread id "TIDPAT", prio %2d, name %s started"
     LOG_THREAD_BEGIN( RUBATO_THREAD_NAME );

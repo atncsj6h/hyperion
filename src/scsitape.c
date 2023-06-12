@@ -1721,7 +1721,7 @@ static void* get_stape_status_thread( void* notused )
     // in order to prevent their wait from timing out. We ensure this
     // by setting our own priority HIGHER than theirs.
 
-    set_thread_priority( sysblk.devprio + 1 );
+    SET_THREAD_PRIORITY( sysblk.qos_default, sysblk.devprio + 1 );
 
     // "Thread id "TIDPAT", prio %2d, name %s started"
     LOG_THREAD_BEGIN( SCSISTAT_THREAD_NAME  );

@@ -460,6 +460,7 @@ static void* WinMsgThread( void* arg )
 /*-------------------------------------------------------------------*/
 static void* watchdog_thread( void* arg )
 {
+    int   rc;
     REGS* regs;
     S64   savecount[ MAX_CPU_ENGS ];
     int   cpu;
@@ -480,7 +481,7 @@ static void* watchdog_thread( void* arg )
     /* Set watchdog priority LOWER than the CPU thread priority
        such that it will not invalidly detect an inoperable CPU
     */
-    set_thread_priority( MAX( sysblk.minprio, sysblk.cpuprio - 1 ));
+    SET_THREAD_PRIORITY( sysblk.qos_default, MAX( sysblk.minprio, sysblk.cpuprio - 1 ) );
 
     do
     {
@@ -987,7 +988,7 @@ int     rc;
     sysblk.zpbits  = DEF_CMPSC_ZP_BITS;
 #endif
 
-    /* Initialize Trace File helper function pointers */ 
+    /* Initialize Trace File helper function pointers */
     sysblk.s370_gsk = &s370_get_storage_key;
     sysblk.s390_gsk = &s390_get_storage_key;
     sysblk.z900_gsk = &z900_get_storage_key;
@@ -1110,10 +1111,18 @@ int     rc;
     sysblk.hercprio = DEFAULT_HERC_PRIO  /*     V     */;
     sysblk.todprio  = DEFAULT_TOD_PRIO;  /* (highest) */
 
+    /* Initialize default qos classes high to low */
+    sysblk.qos_user_interactive = QOS_CLASS_USER_INTERACTIVE;
+    sysblk.qos_user_initiated   = QOS_CLASS_USER_INITIATED;
+    sysblk.qos_default          = QOS_CLASS_DEFAULT;
+    sysblk.qos_utility          = QOS_CLASS_UTILITY;
+    sysblk.qos_background       = QOS_CLASS_BACKGROUND;
+
     /* Set the priority of the main Hercules thread */
-    if ((rc = set_thread_priority( sysblk.hercprio )) != 0)
+    SET_THREAD_PRIORITY( sysblk.qos_default, sysblk.hercprio ) ;
+    if ( rc != 0)
     {
-        // "set_thread_priority( %d ) failed: %s"
+        // "SET_THREAD_PRIORITY(%d) failed: %s"
         WRMSG( HHC00109, "E", sysblk.hercprio, strerror( rc ));
 
         // "Defaulting all threads to priority %d"
@@ -1215,8 +1224,9 @@ int     rc;
 
 #if !defined( HAVE_BASIC_KEEPALIVE )
 
-    WARNING("TCP keepalive headers not found; check configure.ac")
-    WARNING("TCP keepalive support will NOT be generated")
+    //  WARNING("TCP keepalive headers not found; check configure.ac")
+    //  WARNING("TCP keepalive support will NOT be generated")
+
     // "This build of Hercules does not support TCP keepalive"
     WRMSG( HHC02321, "E" );
 
@@ -1224,15 +1234,11 @@ int     rc;
 
   #if !defined( HAVE_FULL_KEEPALIVE ) && !defined( HAVE_PARTIAL_KEEPALIVE )
 
-    WARNING("This build of Hercules will only have basic TCP keepalive support")
+    //  WARNING("This build of Hercules will only have basic TCP keepalive support")
     // "This build of Hercules has only basic TCP keepalive support"
     WRMSG( HHC02322, "W" );
 
   #elif !defined( HAVE_FULL_KEEPALIVE )
-
-    #if !defined( SUPPRESS_PARTIAL_KEEPALIVE_WARNING )
-    WARNING("This build of Hercules will only have partial TCP keepalive support")
-    #endif
 
     // "This build of Hercules has only partial TCP keepalive support"
     WRMSG( HHC02323, "W" );
